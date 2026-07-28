@@ -45,12 +45,12 @@ function formatDate(value: string | Date | null | undefined): string {
   });
 }
 
-function money(amount: number | string, currency: string): string {
+function money(amount: number | string): string {
   const n = typeof amount === 'number' ? amount : Number(amount);
-  const formatted = Number.isFinite(n)
-    ? n.toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-    : String(amount);
-  return `${currency || 'AED'} ${formatted}`;
+  if (!Number.isFinite(n)) return String(amount);
+  // Show whole amounts as 50 / 750 with no currency code
+  if (Number.isInteger(n)) return String(n);
+  return n.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
 function descriptionForFee(fee: InvoiceFeeRow): string {
@@ -164,14 +164,14 @@ export async function buildMembershipInvoicePdf(options: {
     font: fontBold,
     color: WHITE,
   });
-  page.drawText('Membership Payment Invoice', {
+  page.drawText('Madikai-Kerala', {
     x: margin + 72,
     y: height - 68,
     size: 11,
     font,
     color: rgb(0.9, 0.96, 0.95),
   });
-  page.drawText('UAE', {
+  page.drawText('India', {
     x: margin + 72,
     y: height - 84,
     size: 9,
@@ -307,7 +307,7 @@ export async function buildMembershipInvoicePdf(options: {
     font,
     color: SLATE,
   });
-  const amountText = money(fee.amount, fee.currency);
+  const amountText = money(fee.amount);
   page.drawText(amountText, {
     x: width - margin - fontBold.widthOfTextAtSize(amountText, 11) - 12,
     y,
