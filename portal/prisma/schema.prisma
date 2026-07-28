@@ -1,0 +1,187 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  super_admin
+  president
+  secretary
+  central_committee
+  executive
+  member
+}
+
+enum MemberStatus {
+  active
+  inactive
+  pending
+  suspended
+  expired
+}
+
+enum DocumentType {
+  emirates_id
+  passport
+  photo
+  other
+}
+
+enum FeeStatus {
+  unpaid
+  partial
+  paid
+  overdue
+  cancelled
+}
+
+enum DeliveryStatus {
+  sent
+  delivered
+  read
+  failed
+}
+
+model User {
+  id          Int        @id @default(autoincrement())
+  username    String     @unique @db.VarChar(100)
+  email       String     @unique @db.VarChar(255)
+  passwordHash String    @map("password_hash") @db.VarChar(255)
+  fullName    String     @map("full_name") @db.VarChar(255)
+  role        UserRole
+  phone       String?    @db.VarChar(20)
+  isActive    Boolean    @default(true) @map("is_active")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @default(now()) @map("updated_at")
+
+  members       Member[]      @relation("AssignedExecutive")
+  uploadedDocs  Document[]    @relation("UploadedBy")
+  createdFees   Fee[]         @relation("FeeCreator")
+  whatsappLogs  WhatsappLog[] @relation("MessageSender")
+  auditLogs     AuditLog[]
+
+  @@map("users")
+}
+
+model Member {
+  id                 Int         @id @default(autoincrement())
+  memberId           String      @unique @map("member_id") @db.VarChar(50)
+  fullName           String      @map("full_name") @db.VarChar(255)
+  fullNameArabic     String?     @map("full_name_arabic") @db.VarChar(255)
+  email              String?     @db.VarChar(255)
+  phone              String      @db.VarChar(20)
+  whatsappNumber     String?     @map("whatsapp_number") @db.VarChar(20)
+  emiratesId         String?     @map("emirates_id") @db.VarChar(50)
+  passportNumber     String?     @map("passport_number") @db.VarChar(50)
+  nationality        String?     @db.VarChar(100)
+  dateOfBirth        DateTime?   @map("date_of_birth") @db.Date
+  address            String?
+  emergencyContact   String?     @map("emergency_contact") @db.VarChar(255)
+  joinedDate         DateTime?   @map("joined_date") @db.Date
+  membershipType     String      @default("standard") @map("membership_type") @db.VarChar(50)
+  membershipStartDate DateTime   @map("membership_start_date") @db.Date
+  membershipEndDate  DateTime?   @map("membership_end_date") @db.Date
+  status             MemberStatus @default(pending)
+  assignedExecutiveId Int?       @map("assigned_executive_id")
+  notes              String?
+  createdAt          DateTime    @default(now()) @map("created_at")
+  updatedAt          DateTime    @default(now()) @map("updated_at")
+
+  assignedExecutive User?        @relation("AssignedExecutive", fields: [assignedExecutiveId], references: [id], onDelete: SetNull)
+  documents         Document[]
+  fees              Fee[]
+  whatsappLogs      WhatsappLog[]
+
+  @@index([status], map: "idx_members_status")
+  @@index([assignedExecutiveId], map: "idx_members_assigned_executive")
+  @@index([memberId], map: "idx_members_member_id")
+  @@map("members")
+}
+
+model Document {
+  id          Int        @id @default(autoincrement())
+  memberId    Int        @map("member_id")
+  documentType DocumentType @map("document_type")
+  fileName    String     @map("file_name") @db.VarChar(255)
+  filePath    String     @map("file_path") @db.VarChar(500)
+  fileSize    Int?       @map("file_size")
+  mimeType    String?    @map("mime_type") @db.VarChar(100)
+  expiryDate  DateTime?  @map("expiry_date") @db.Date
+  uploadedBy  Int?       @map("uploaded_by")
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  member      Member     @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  uploadedByUser User?   @relation("UploadedBy", fields: [uploadedBy], references: [id], onDelete: SetNull)
+
+  @@index([memberId], map: "idx_documents_member_id")
+  @@map("documents")
+}
+
+model Fee {
+  id                   Int       @id @default(autoincrement())
+  memberId             Int       @map("member_id")
+  feeType              String    @map("fee_type") @db.VarChar(100)
+  feeYear              String?   @map("fee_year") @db.VarChar(20)
+  amount               Decimal   @db.Decimal(10, 2)
+  currency             String    @default("AED") @db.VarChar(10)
+  dueDate              DateTime  @map("due_date") @db.Date
+  paidDate             DateTime? @map("paid_date") @db.Date
+  paymentStatus        FeeStatus @default(unpaid) @map("payment_status")
+  partialAmount        Decimal   @default(0) @map("partial_amount") @db.Decimal(10, 2)
+  paymentMethod        String?   @map("payment_method") @db.VarChar(50)
+  transactionReference String?   @map("transaction_reference") @db.VarChar(100)
+  notes                String?
+  createdBy            Int?      @map("created_by")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @default(now()) @map("updated_at")
+
+  member        Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  createdByUser User?         @relation("FeeCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  whatsappLogs  WhatsappLog[]
+
+  @@index([memberId], map: "idx_fees_member_id")
+  @@index([paymentStatus], map: "idx_fees_payment_status")
+  @@index([dueDate], map: "idx_fees_due_date")
+  @@map("fees")
+}
+
+model WhatsappLog {
+  id                Int           @id @default(autoincrement())
+  memberId          Int           @map("member_id")
+  feeId             Int?          @map("fee_id")
+  messageType       String        @map("message_type") @db.VarChar(50)
+  messageContent    String?       @map("message_content")
+  externalMessageId String?       @map("external_message_id") @db.VarChar(255)
+  deliveryStatus    DeliveryStatus @default(sent) @map("delivery_status")
+  sentBy            Int?          @map("sent_by")
+  sentAt            DateTime      @default(now()) @map("sent_at")
+
+  member      Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  fee         Fee?   @relation(fields: [feeId], references: [id], onDelete: SetNull)
+  sentByUser  User?  @relation("MessageSender", fields: [sentBy], references: [id], onDelete: SetNull)
+
+  @@index([memberId], map: "idx_whatsapp_logs_member_id")
+  @@map("whatsapp_logs")
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int?     @map("user_id")
+  action     String   @db.VarChar(100)
+  entityType String   @map("entity_type") @db.VarChar(50)
+  entityId   Int?     @map("entity_id")
+  oldValues  Json?    @map("old_values")
+  newValues  Json?    @map("new_values")
+  ipAddress  String?  @map("ip_address") @db.VarChar(50)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId], map: "idx_audit_logs_user_id")
+  @@index([entityType, entityId], map: "idx_audit_logs_entity")
+  @@map("audit_logs")
+}

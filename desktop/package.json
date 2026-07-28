@@ -1,0 +1,74 @@
+{
+  "name": "membership-portal-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Offline desktop installer for Membership Portal (embedded PGlite + local files)",
+  "main": "electron/main.js",
+  "author": "MMP",
+  "scripts": {
+    "prepare:portal": "node scripts/prepare-portal.mjs",
+    "dev": "node scripts/dev.mjs",
+    "start": "electron .",
+    "pack": "npm run prepare:portal && electron-builder --dir",
+    "dist:win": "npm run prepare:portal && electron-builder --win nsis",
+    "dist:mac": "npm run prepare:portal && electron-builder --mac dmg",
+    "dist": "npm run prepare:portal && electron-builder --win nsis"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "electron": "^37.2.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.mmp.membershipportal",
+    "productName": "Membership Portal",
+    "copyright": "Copyright © MMP",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "electron/**/*",
+      "package.json",
+      "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "app",
+        "to": "app"
+      },
+      {
+        "from": "resources/env.desktop.example",
+        "to": "env.desktop.example"
+      },
+      {
+        "from": "resources/README-INSTALL.txt",
+        "to": "README-INSTALL.txt"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "MembershipPortal-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Membership Portal"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.business"
+    }
+  }
+}

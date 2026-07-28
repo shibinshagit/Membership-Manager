@@ -1,0 +1,50 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# next.js / build
+.next/
+.next-desktop/
+out/
+build/
+dist/
+
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# database / blob backups
+db-backup-*.sql
+blob-backup-*/
+blob-backup-*.zip
+*.sql.bak
+*.dump
+portal/data/
+
+# desktop packaged output
+desktop/build/
+desktop/dist/
+desktop/app/
+
+# debug / logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# vercel / local tooling
+.vercel/
+.turbo/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json

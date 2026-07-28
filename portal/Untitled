@@ -1,0 +1,181 @@
+Build a Membership Management Portal for a small charity organization with the following specifications:
+
+---
+
+OVERVIEW
+A web-based membership management system for a charity with ~500 members and ~40-50 executive committee members. The system must support hierarchical roles, member-to-executive assignment, profile management, document storage, and annual fee tracking with WhatsApp payment requests.
+
+---
+
+TECH STACK (recommended)
+- Frontend: Next.js 14 (App Router) + TypeScript + Tailwind CSS
+- Backend: Next.js API Routes or Node.js/Express
+- Database: PostgreSQL with Prisma ORM
+- File Storage: AWS S3 or Cloudflare R2 (for document uploads)
+- Auth: NextAuth.js with role-based access control
+- WhatsApp: Twilio API or WhatsApp Business API (for invoice sending)
+
+---
+
+USER ROLES & HIERARCHY
+1. Super Admin / President
+   - Full system access
+   - Can appoint/remove committee members and executives
+   - Can view all reports and financials
+
+2. Secretary
+   - Manage member records
+   - Send payment requests
+   - Generate reports
+
+3. Central Committee Member
+   - View assigned region/group data
+   - Approve member applications
+
+4. Executive Member (Lane Manager equivalent)
+   - Each executive is assigned 10 members to oversee
+   - Can view and update their assigned members' details
+   - Can mark fee payments received
+   - Can send WhatsApp payment reminders to their 10 members
+
+5. Regular Member
+   - View own profile
+   - Update own contact details
+   - View own payment history and receipts
+
+---
+
+CORE MODULES
+
+1. MEMBER MANAGEMENT
+   - Member registration form with fields:
+     * Full name (English + Arabic)
+     * Member ID (auto-generated)
+     * Mobile number (with country code)
+     * WhatsApp number (may differ from mobile)
+     * Email address
+     * Emirates ID / Passport number
+     * Nationality
+     * Date of birth
+     * Residential address
+     * Emergency contact
+     * Date joined
+     * Member status (Active / Inactive / Pending)
+   - Search and filter members by name, ID, status, assigned executive
+   - Bulk import via CSV/Excel
+
+2. EXECUTIVE ASSIGNMENT (Lane Manager System)
+   - ERP-style assignment interface
+   - Each executive can be assigned up to 10 members
+   - Visual dashboard showing:
+     * Executive name
+     * Assigned members list (up to 10)
+     * Payment status of each member
+     * Contact completeness score
+   - Drag-and-drop or dropdown reassignment of members between executives
+   - Alert when an executive's member count exceeds 10
+
+3. DOCUMENT MANAGEMENT
+   - Per-member document upload section
+   - Supported document types:
+     * Emirates ID (front + back)
+     * Passport copy
+     * Photo
+     * Any other relevant document
+   - Document preview in-browser (PDF and image)
+   - Document expiry tracking (for Emirates ID / Passport)
+   - Upload size limit: 5MB per file
+
+4. ANNUAL MEMBERSHIP FEE MODULE
+   - Annual fee: AED 50 per member
+   - Fee year tracking (e.g., 2024-2025)
+   - Payment recording:
+     * Mark as Paid / Unpaid / Partial
+     * Payment date
+     * Payment method (Cash / Bank Transfer / Online)
+     * Reference number
+   - Payment history per member (all years)
+   - Bulk fee status view (which members have paid / not paid)
+   - Dashboard summary: Total collected, Pending amount, % paid
+
+5. WHATSAPP INVOICE & PAYMENT REQUEST
+   - Generate a clean invoice/payment request including:
+     * Organization logo and name
+     * Member name and ID
+     * Fee amount: AED 50
+     * Due date
+     * Payment instructions (bank account or payment link)
+     * QR code (optional)
+   - Send via WhatsApp to member's registered WhatsApp number
+   - Bulk send to all unpaid members (with rate limiting to avoid spam flags)
+   - Track: Sent / Delivered / Read status (if using WhatsApp Business API)
+   - Executive can send reminders only to their 10 assigned members
+   - Secretary/Admin can do bulk send
+
+---
+
+DASHBOARD & REPORTS
+
+Admin Dashboard
+- Total members count
+- Active vs inactive breakdown
+- Fee collection: paid / unpaid / total expected
+- Members with missing documents
+- Members with upcoming document expiry
+- Recent activity log
+
+Executive Dashboard
+- My 10 assigned members
+- Fee payment status per member
+- Quick-send WhatsApp reminder button per member
+- Contact detail completeness warnings
+
+Reports (exportable as PDF / Excel)
+- Full member list
+- Fee collection report (by year, by executive, by status)
+- Members with outstanding fees
+- Document expiry report
+- New members added in date range
+
+---
+
+KEY UI/UX REQUIREMENTS
+- Mobile-responsive (executives will use on phones)
+- Arabic RTL support (optional but preferred)
+- Simple, clean interface suitable for non-technical committee members
+- Dashboard in English; member-facing content should support English and Malayalam/Arabic
+- WhatsApp invoice message should be in English and Malayalam
+
+---
+
+SECURITY & ACCESS
+- JWT-based authentication
+- Role-based route protection (middleware)
+- Executives can only see their 10 assigned members (data isolation)
+- Audit log for all changes (who changed what, when)
+- Data export only available to Admin/Secretary roles
+
+---
+
+DEPLOYMENT
+- Hosted on VPS or cloud (AWS/DigitalOcean/Render)
+- SSL certificate
+- Daily automated database backup
+- Environment: Production + Staging
+
+---
+
+DELIVERABLES
+1. Full source code (GitHub repository)
+2. Database schema (Prisma migrations)
+3. Admin setup guide
+4. User manual (for executives and members)
+5. API documentation
+
+---
+
+FUTURE CONSIDERATIONS (not in scope now, but design for extensibility)
+- Online payment gateway integration (Stripe / PayTabs)
+- Event management module
+- SMS notifications
+- Member self-registration portal with approval workflow
