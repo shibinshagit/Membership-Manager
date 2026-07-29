@@ -5,8 +5,7 @@
     "dev": "npm run dev --prefix portal",
     "build": "npm run build --prefix portal",
     "start": "npm run start --prefix portal",
-    "lint": "npm run lint --prefix portal",
-    "vercel-build": "npm install --prefix portal && npm run build --prefix portal"
+    "lint": "npm run lint --prefix portal"
   },
   "engines": {
     "node": ">=20"
