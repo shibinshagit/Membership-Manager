@@ -31,6 +31,7 @@ export async function GET(request: Request) {
   const search = searchParams.get('search');
   const visaStatus = searchParams.get('visa_status');
   const maritalStatus = searchParams.get('marital_status');
+  const gender = searchParams.get('gender');
   const locality = searchParams.get('locality');
   const exportFormat = searchParams.get('export');
   const page = parseInt(searchParams.get('page') || '1');
@@ -47,6 +48,7 @@ export async function GET(request: Request) {
     const normalizedVisaStatus = visaStatus && visaStatus !== 'all' ? visaStatus : null;
     const normalizedMaritalStatus =
       maritalStatus && maritalStatus !== 'all' ? maritalStatus : null;
+    const normalizedGender = gender && gender !== 'all' ? gender : null;
     const executiveIdInt = executiveId ? Number.parseInt(executiveId, 10) : null;
 
     // Get total count
@@ -58,6 +60,7 @@ export async function GET(request: Request) {
             AND (${normalizedStatus}::text IS NULL OR m.status = ${normalizedStatus})
             AND (${normalizedVisaStatus}::text IS NULL OR m.visa_status = ${normalizedVisaStatus})
             AND (${normalizedMaritalStatus}::text IS NULL OR m.marital_status = ${normalizedMaritalStatus})
+            AND (${normalizedGender}::text IS NULL OR m.gender = ${normalizedGender})
             AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_member_id = ${executiveIdInt})
             AND (
               ${searchPattern}::text IS NULL OR
@@ -84,6 +87,7 @@ export async function GET(request: Request) {
             AND (${normalizedStatus}::text IS NULL OR m.status = ${normalizedStatus})
             AND (${normalizedVisaStatus}::text IS NULL OR m.visa_status = ${normalizedVisaStatus})
             AND (${normalizedMaritalStatus}::text IS NULL OR m.marital_status = ${normalizedMaritalStatus})
+            AND (${normalizedGender}::text IS NULL OR m.gender = ${normalizedGender})
             AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_id = ${executiveIdInt})
             AND (
               ${searchPattern}::text IS NULL OR
@@ -118,6 +122,7 @@ export async function GET(request: Request) {
                 AND (${normalizedStatus}::text IS NULL OR m.status = ${normalizedStatus})
                 AND (${normalizedVisaStatus}::text IS NULL OR m.visa_status = ${normalizedVisaStatus})
                 AND (${normalizedMaritalStatus}::text IS NULL OR m.marital_status = ${normalizedMaritalStatus})
+                AND (${normalizedGender}::text IS NULL OR m.gender = ${normalizedGender})
                 AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_member_id = ${executiveIdInt})
                 AND (
                   ${searchPattern}::text IS NULL OR
@@ -148,6 +153,7 @@ export async function GET(request: Request) {
                 AND (${normalizedStatus}::text IS NULL OR m.status = ${normalizedStatus})
                 AND (${normalizedVisaStatus}::text IS NULL OR m.visa_status = ${normalizedVisaStatus})
                 AND (${normalizedMaritalStatus}::text IS NULL OR m.marital_status = ${normalizedMaritalStatus})
+                AND (${normalizedGender}::text IS NULL OR m.gender = ${normalizedGender})
                 AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_id = ${executiveIdInt})
                 AND (
                   ${searchPattern}::text IS NULL OR
@@ -179,6 +185,7 @@ export async function GET(request: Request) {
               AND (${normalizedStatus}::text IS NULL OR m.status = ${normalizedStatus})
               AND (${normalizedVisaStatus}::text IS NULL OR m.visa_status = ${normalizedVisaStatus})
               AND (${normalizedMaritalStatus}::text IS NULL OR m.marital_status = ${normalizedMaritalStatus})
+              AND (${normalizedGender}::text IS NULL OR m.gender = ${normalizedGender})
               AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_member_id = ${executiveIdInt})
               AND (
                 ${searchPattern}::text IS NULL OR
@@ -210,6 +217,7 @@ export async function GET(request: Request) {
               AND (${normalizedStatus}::text IS NULL OR m.status = ${normalizedStatus})
               AND (${normalizedVisaStatus}::text IS NULL OR m.visa_status = ${normalizedVisaStatus})
               AND (${normalizedMaritalStatus}::text IS NULL OR m.marital_status = ${normalizedMaritalStatus})
+              AND (${normalizedGender}::text IS NULL OR m.gender = ${normalizedGender})
               AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_id = ${executiveIdInt})
               AND (
                 ${searchPattern}::text IS NULL OR
@@ -376,9 +384,14 @@ export async function POST(request: Request) {
           ? 'paid'
           : 'unpaid';
     const period = annualPeriod(joinYear);
+    const lifetimeStartFromBody =
+      typeof body.lifetime_start_date === 'string' &&
+      /^\d{4}-\d{2}-\d{2}/.test(body.lifetime_start_date)
+        ? body.lifetime_start_date.slice(0, 10)
+        : null;
     const resolvedStartDate =
       resolvedPlan === 'lifetime'
-        ? membership_start_date || new Date().toISOString().slice(0, 10)
+        ? lifetimeStartFromBody || membership_start_date || new Date().toISOString().slice(0, 10)
         : period.start_date;
     const resolvedEndDate =
       resolvedPlan === 'lifetime' ? null : annualPeriod(new Date().getFullYear()).end_date;
@@ -501,6 +514,7 @@ export async function POST(request: Request) {
       paidYears: legacyPaid,
       createdBy: user.id,
       paymentStatusForLifetime: resolvedPaymentStatus,
+      lifetimeStartDate: resolvedPlan === 'lifetime' ? resolvedStartDate : null,
     });
     await reconcileMemberStatusesByPayment();
 

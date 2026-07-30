@@ -7,11 +7,14 @@ import { parseWardNo } from '@/lib/members/ward-numbers';
 import {
   currentCalendarYear,
   FEE_TYPE_ANNUAL,
+  FEE_TYPE_LIFETIME,
   normalizeFeeYearLabel,
   normalizeJoinYear,
   parsePaidYears,
   reconcileMemberStatusesByPayment,
   syncMemberFeeYears,
+  yearFromDateInput,
+  yearsBeforeLifetime,
 } from '@/lib/fees-policy';
 import {
   ensureAssignedExecutiveMemberColumn,
@@ -24,9 +27,24 @@ function currentFeeYear(): string {
   return String(currentCalendarYear());
 }
 
+function isoDateOnly(value: unknown): string | null {
+  if (!value) return null;
+  const s = String(value);
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 10);
+}
+
 function deriveJoinAndPaidYears(
   member: Record<string, unknown>,
-  fees: Array<{ fee_year?: string; fee_type?: string; payment_status?: string }>
+  fees: Array<{
+    fee_year?: string;
+    fee_type?: string;
+    payment_status?: string;
+    start_date?: string | null;
+    paid_date?: string | null;
+  }>
 ) {
   const annualFees = fees.filter(
     (f) => f.fee_type === FEE_TYPE_ANNUAL || (f.fee_year && f.fee_year !== 'lifetime')
@@ -38,14 +56,33 @@ function deriveJoinAndPaidYears(
   const allYears = annualFees
     .map((f) => Number.parseInt(normalizeFeeYearLabel(f.fee_year), 10))
     .filter((y) => Number.isFinite(y));
+
+  const isLifetime = member.membership_plan === 'lifetime';
+  // For lifetime, membership_start_date is the lifetime start — join comes from joined_date.
   const fromDates = normalizeJoinYear(
-    member.joined_date ?? member.membership_start_date ?? currentCalendarYear()
+    member.joined_date ?? (isLifetime ? null : member.membership_start_date) ?? currentCalendarYear()
   );
-  const joinYear =
-    allYears.length > 0 ? Math.min(...allYears, fromDates) : fromDates;
+  let joinYear = allYears.length > 0 ? Math.min(...allYears, fromDates) : fromDates;
+
+  const lifeFee = fees.find(
+    (f) => f.fee_year === 'lifetime' || f.fee_type === FEE_TYPE_LIFETIME
+  );
+  const lifetimeStartedOn =
+    isoDateOnly(lifeFee?.start_date) ||
+    isoDateOnly(lifeFee?.paid_date) ||
+    (isLifetime ? isoDateOnly(member.membership_start_date) : null);
+
+  let resolvedPaid = [...new Set(paidYears)].sort((a, b) => a - b);
+  if (lifetimeStartedOn) {
+    const lifeYear = yearFromDateInput(lifetimeStartedOn);
+    const allowed = new Set(yearsBeforeLifetime(joinYear, lifeYear));
+    resolvedPaid = resolvedPaid.filter((y) => allowed.has(y));
+  }
+
   return {
     join_year: joinYear,
-    paid_years: [...new Set(paidYears)].sort((a, b) => a - b),
+    paid_years: resolvedPaid,
+    lifetime_started_on: lifetimeStartedOn,
   };
 }
 
@@ -171,6 +208,7 @@ export async function GET(
       fees,
       join_year: yearsMeta.join_year,
       paid_years: yearsMeta.paid_years,
+      lifetime_started_on: yearsMeta.lifetime_started_on,
     });
   } catch (error) {
     console.error('Error fetching member:', error);
@@ -231,6 +269,7 @@ export async function PUT(
       membership_fee_year,
       join_year,
       paid_years,
+      lifetime_start_date,
       membership_start_date,
       membership_end_date,
       status,
@@ -314,10 +353,19 @@ export async function PUT(
         : paidYears.includes(currentCalendarYear())
           ? 'paid'
           : 'unpaid';
+    const lifetimeStart =
+      typeof lifetime_start_date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(lifetime_start_date)
+        ? lifetime_start_date.slice(0, 10)
+        : null;
     const resolvedStartDate =
-      membership_start_date ||
-      currentMember[0].membership_start_date ||
-      `${joinYear}-01-01`;
+      resolvedPlan === 'lifetime'
+        ? lifetimeStart ||
+          membership_start_date ||
+          currentMember[0].membership_start_date ||
+          new Date().toISOString().slice(0, 10)
+        : membership_start_date ||
+          currentMember[0].membership_start_date ||
+          `${joinYear}-01-01`;
     const resolvedEndDate =
       resolvedPlan === 'lifetime'
         ? null
@@ -427,6 +475,7 @@ export async function PUT(
         paidYears,
         createdBy: user.id,
         paymentStatusForLifetime: resolvedPaymentStatus,
+        lifetimeStartDate: resolvedPlan === 'lifetime' ? resolvedStartDate : null,
       });
       await reconcileMemberStatusesByPayment();
     }

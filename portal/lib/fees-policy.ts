@@ -8,6 +8,8 @@ import {
   currentCalendarYear,
   normalizeJoinYear,
   parsePaidYears,
+  yearFromDateInput,
+  yearsBeforeLifetime,
   yearsFromJoinToCurrent,
 } from '@/lib/fees-calendar';
 
@@ -25,13 +27,16 @@ export {
   normalizeJoinYear,
   parsePaidYears,
   resolveFeePlanOrThrow,
+  yearFromDateInput,
+  yearsBeforeLifetime,
   yearsFromJoinToCurrent,
 } from '@/lib/fees-calendar';
 
 /**
  * Create/update fee rows for a member.
- * - Lifetime: one lifetime row; removes annual dues (no yearly billing).
- * - Annual: one row per year from joinYear→current; checked years = paid, others = unpaid.
+ * - Lifetime: AED 750 invoice + optional paid annual history for checked years from join→current
+ *   (unchecked years are not billed — no further annual dues).
+ * - Annual: one row per year from joinYear→current; checked = paid, unchecked = unpaid/due.
  */
 export async function syncMemberFeeYears(options: {
   memberId: number;
@@ -40,7 +45,8 @@ export async function syncMemberFeeYears(options: {
   paidYears?: number[];
   createdBy?: number | null;
   paymentStatusForLifetime?: 'paid' | 'unpaid';
-}): Promise<{ years: number[]; paidYears: number[] }> {
+  lifetimeStartDate?: string | null;
+}): Promise<{ years: number[]; paidYears: number[]; lifetimeStartDate?: string }> {
   const {
     memberId,
     plan,
@@ -48,10 +54,19 @@ export async function syncMemberFeeYears(options: {
     paidYears = [],
     createdBy = null,
     paymentStatusForLifetime = 'paid',
+    lifetimeStartDate = null,
   } = options;
 
   if (plan === 'lifetime') {
-    // Drop unpaid annual dues only — keep paid annual history for records
+    const lifeDate =
+      lifetimeStartDate && /^\d{4}-\d{2}-\d{2}/.test(lifetimeStartDate)
+        ? lifetimeStartDate.slice(0, 10)
+        : new Date().toISOString().slice(0, 10);
+    const lifeYear = yearFromDateInput(lifeDate);
+    const years = yearsBeforeLifetime(joinYear, lifeYear);
+    const paidSet = new Set(parsePaidYears(paidYears).filter((y) => years.includes(y)));
+
+    // Remove all unpaid annual dues (lifetime stops yearly billing)
     await sql`
       DELETE FROM member_memberships
       WHERE member_id = ${memberId}
@@ -59,7 +74,63 @@ export async function syncMemberFeeYears(options: {
         AND payment_status <> 'paid'
     `;
 
-    const today = new Date().toISOString().slice(0, 10);
+    // Drop paid annual rows outside join→current or not marked paid in this sync
+    const paidLabels = [...paidSet].map(String);
+    if (paidLabels.length > 0) {
+      await sql`
+        DELETE FROM member_memberships
+        WHERE member_id = ${memberId}
+          AND fee_type = ${FEE_TYPE_ANNUAL}
+          AND payment_status = 'paid'
+          AND NOT (fee_year = ANY(${paidLabels}))
+      `;
+    } else {
+      await sql`
+        DELETE FROM member_memberships
+        WHERE member_id = ${memberId}
+          AND fee_type = ${FEE_TYPE_ANNUAL}
+          AND payment_status = 'paid'
+      `;
+    }
+
+    // Record paid annual history for each checked year
+    for (const year of paidSet) {
+      const period = annualPeriod(year);
+      await sql`
+        INSERT INTO member_memberships (
+          member_id, fee_year, fee_type, plan, amount, currency, due_date, payment_status,
+          start_date, end_date, paid_date, notes, created_by, updated_at
+        )
+        VALUES (
+          ${memberId},
+          ${period.fee_year},
+          ${FEE_TYPE_ANNUAL},
+          ${'annual'},
+          ${ANNUAL_AMOUNT},
+          ${'AED'},
+          ${period.due_date},
+          ${'paid'},
+          ${period.start_date},
+          ${period.end_date},
+          ${period.end_date},
+          ${`Annual membership ${year} (paid before lifetime)`},
+          ${createdBy},
+          NOW()
+        )
+        ON CONFLICT (member_id, fee_year)
+        DO UPDATE SET
+          fee_type = EXCLUDED.fee_type,
+          plan = EXCLUDED.plan,
+          amount = EXCLUDED.amount,
+          payment_status = 'paid',
+          paid_date = COALESCE(member_memberships.paid_date, EXCLUDED.paid_date),
+          notes = EXCLUDED.notes,
+          updated_at = NOW()
+      `;
+    }
+
+    const today = lifeDate;
+    const joinStart = annualPeriod(normalizeJoinYear(joinYear)).start_date;
     await sql`
       INSERT INTO member_memberships (
         member_id, fee_year, fee_type, plan, amount, currency, due_date, payment_status,
@@ -77,7 +148,7 @@ export async function syncMemberFeeYears(options: {
         ${today},
         ${null},
         ${paymentStatusForLifetime === 'paid' ? today : null},
-        ${'Lifetime membership — no annual dues'},
+        ${`Lifetime membership from ${today} — no further annual dues`},
         ${createdBy},
         NOW()
       )
@@ -86,6 +157,8 @@ export async function syncMemberFeeYears(options: {
         fee_type = EXCLUDED.fee_type,
         plan = EXCLUDED.plan,
         amount = EXCLUDED.amount,
+        due_date = EXCLUDED.due_date,
+        start_date = EXCLUDED.start_date,
         payment_status = EXCLUDED.payment_status,
         paid_date = EXCLUDED.paid_date,
         notes = EXCLUDED.notes,
@@ -96,13 +169,18 @@ export async function syncMemberFeeYears(options: {
       UPDATE members
       SET membership_plan = 'lifetime',
           membership_payment_status = ${paymentStatusForLifetime},
-          membership_start_date = COALESCE(membership_start_date, ${today}::date),
+          membership_start_date = ${today},
           membership_end_date = NULL,
-          updated_at = NOW()
+        joined_date = ${joinStart},
+        updated_at = NOW()
       WHERE id = ${memberId}
     `;
 
-    return { years: [], paidYears: [] };
+    return {
+      years,
+      paidYears: [...paidSet].sort((a, b) => a - b),
+      lifetimeStartDate: today,
+    };
   }
 
   // Annual: remove lifetime row if switching from lifetime
@@ -179,10 +257,10 @@ export async function syncMemberFeeYears(options: {
         membership_payment_status = ${currentPaid ? 'paid' : 'unpaid'},
         membership_start_date = ${startDate},
         membership_end_date = ${endDate},
-        joined_date = COALESCE(joined_date, ${startDate}::date),
+        joined_date = ${startDate},
         updated_at = NOW()
-    WHERE id = ${memberId}
-  `;
+      WHERE id = ${memberId}
+    `;
 
   return { years, paidYears: [...paidSet].sort((a, b) => a - b) };
 }
@@ -314,25 +392,57 @@ export async function backfillLegacyMembershipFees(memberId?: number): Promise<n
   return inserted.length;
 }
 
-/** Upgrade annual member → lifetime: AED 750 unpaid invoice, remove unpaid yearly dues. */
+/** Upgrade annual member → lifetime: record prior paid years + AED 750 invoice. */
 export async function upgradeMemberToLifetime(options: {
   memberId: number;
+  joinYear?: number;
+  paidYears?: number[];
+  lifetimeStartDate?: string | null;
   createdBy?: number | null;
+  paymentStatusForLifetime?: 'paid' | 'unpaid';
 }): Promise<{ feeId: number }> {
-  const { memberId, createdBy = null } = options;
+  const {
+    memberId,
+    createdBy = null,
+    paidYears = [],
+    lifetimeStartDate = null,
+    paymentStatusForLifetime = 'unpaid',
+  } = options;
+
+  const members = await sql`
+    SELECT joined_date, membership_start_date FROM members WHERE id = ${memberId}
+  `;
+  const joinYear = normalizeJoinYear(
+    options.joinYear ?? members[0]?.joined_date ?? members[0]?.membership_start_date
+  );
+
+  // Preserve already-paid annual years if caller didn't pass paidYears
+  let resolvedPaid = parsePaidYears(paidYears);
+  if (resolvedPaid.length === 0) {
+    const paidRows = await sql`
+      SELECT fee_year FROM member_memberships
+      WHERE member_id = ${memberId}
+        AND fee_type = ${FEE_TYPE_ANNUAL}
+        AND payment_status = 'paid'
+    `;
+    resolvedPaid = parsePaidYears(
+      paidRows.map((r) => Number.parseInt(String(r.fee_year), 10))
+    );
+  }
 
   await syncMemberFeeYears({
     memberId,
     plan: 'lifetime',
-    joinYear: currentCalendarYear(),
-    paidYears: [],
+    joinYear,
+    paidYears: resolvedPaid,
     createdBy,
-    paymentStatusForLifetime: 'unpaid',
+    paymentStatusForLifetime,
+    lifetimeStartDate,
   });
 
   await sql`
     UPDATE member_memberships
-    SET notes = ${'Lifetime upgrade invoice — AED 750. No further annual dues.'},
+    SET notes = ${'Lifetime upgrade invoice — 750. No further annual dues.'},
         updated_at = NOW()
     WHERE member_id = ${memberId}
       AND fee_year = 'lifetime'

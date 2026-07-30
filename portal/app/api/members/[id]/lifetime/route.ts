@@ -49,7 +49,11 @@ export async function POST(
 
       const { feeId } = await upgradeMemberToLifetime({
         memberId,
+        joinYear: body.join_year,
+        paidYears: body.paid_years,
+        lifetimeStartDate: body.lifetime_start_date,
         createdBy: user.id,
+        paymentStatusForLifetime: 'unpaid',
       });
 
       await sql`

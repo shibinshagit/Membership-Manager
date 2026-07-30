@@ -92,6 +92,7 @@ export default function MembersPage() {
   const [status, setStatus] = useState('all');
   const [visaStatus, setVisaStatus] = useState('all');
   const [maritalStatus, setMaritalStatus] = useState('all');
+  const [gender, setGender] = useState('all');
   const [locality, setLocality] = useState('');
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
@@ -105,6 +106,9 @@ export default function MembersPage() {
   const [approveJoinYear, setApproveJoinYear] = useState(currentCalendarYear());
   const [approvePaidYears, setApprovePaidYears] = useState<number[]>([]);
   const [approvePlan, setApprovePlan] = useState<'annual' | 'lifetime'>('annual');
+  const [approveLifetimeStartDate, setApproveLifetimeStartDate] = useState(
+    () => new Date().toISOString().slice(0, 10)
+  );
 
   const limit = 20;
 
@@ -139,6 +143,7 @@ export default function MembersPage() {
     );
     setApprovePaidYears([]);
     setApprovePlan(member.membership_plan === 'lifetime' ? 'lifetime' : 'annual');
+    setApproveLifetimeStartDate(new Date().toISOString().slice(0, 10));
   };
 
   const handleApprove = async () => {
@@ -152,7 +157,8 @@ export default function MembersPage() {
           action: 'approve',
           plan: approvePlan,
           join_year: approveJoinYear,
-          paid_years: approvePlan === 'annual' ? approvePaidYears : [],
+          paid_years: approvePaidYears,
+          lifetime_start_date: approvePlan === 'lifetime' ? approveLifetimeStartDate : undefined,
         }),
       });
       if (res.ok) {
@@ -208,6 +214,7 @@ export default function MembersPage() {
       if (status && status !== 'all') params.set('status', status);
       if (visaStatus && visaStatus !== 'all') params.set('visa_status', visaStatus);
       if (maritalStatus && maritalStatus !== 'all') params.set('marital_status', maritalStatus);
+      if (gender && gender !== 'all') params.set('gender', gender);
       if (locality) params.set('locality', locality);
       params.set('page', page.toString());
 
@@ -229,7 +236,7 @@ export default function MembersPage() {
     return () => {
       cancelled = true;
     };
-  }, [search, status, visaStatus, maritalStatus, locality, page, reloadToken]);
+  }, [search, status, visaStatus, maritalStatus, gender, locality, page, reloadToken]);
 
   const pageIds = useMemo(() => members.map((m) => m.id), [members]);
   const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
@@ -301,6 +308,7 @@ export default function MembersPage() {
     if (status && status !== 'all') params.set('status', status);
     if (visaStatus && visaStatus !== 'all') params.set('visa_status', visaStatus);
     if (maritalStatus && maritalStatus !== 'all') params.set('marital_status', maritalStatus);
+    if (gender && gender !== 'all') params.set('gender', gender);
     if (locality) params.set('locality', locality);
     params.set('export', 'csv');
     window.location.href = `/api/members?${params.toString()}`;
@@ -419,6 +427,22 @@ export default function MembersPage() {
                 <SelectItem value="married">Married</SelectItem>
                 <SelectItem value="widowed">Widowed</SelectItem>
                 <SelectItem value="divorced">Divorced</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              value={gender}
+              onValueChange={(v) => {
+                setGender(v);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="w-full sm:w-40">
+                <SelectValue placeholder="Gender" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Gender</SelectItem>
+                <SelectItem value="male">Male</SelectItem>
+                <SelectItem value="female">Female</SelectItem>
               </SelectContent>
             </Select>
             <div className="flex flex-wrap gap-2 sm:ml-auto">
@@ -743,8 +767,9 @@ export default function MembersPage() {
           <DialogHeader>
             <DialogTitle>Approve {approveMember?.full_name}</DialogTitle>
             <DialogDescription>
-              Set join year and mark which calendar years are already paid. Unchecked years stay due
-              (WhatsApp invoice from Fees). Lifetime members skip annual billing.
+              Set join year and mark which calendar years were already paid. For lifetime, set when
+              lifetime started — only years before that date can be marked paid annually. A 750
+              lifetime invoice is created with no further annual dues.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -758,23 +783,20 @@ export default function MembersPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="annual">Yearly (AED 50 / calendar year)</SelectItem>
-                  <SelectItem value="lifetime">Lifetime (AED 750)</SelectItem>
+                  <SelectItem value="annual">Yearly (50 / calendar year)</SelectItem>
+                  <SelectItem value="lifetime">Lifetime (750)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            {approvePlan === 'annual' ? (
-              <MembershipYearsPicker
-                joinYear={approveJoinYear}
-                paidYears={approvePaidYears}
-                onJoinYearChange={setApproveJoinYear}
-                onPaidYearsChange={setApprovePaidYears}
-              />
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Lifetime members have no annual dues after approval.
-              </p>
-            )}
+            <MembershipYearsPicker
+              joinYear={approveJoinYear}
+              paidYears={approvePaidYears}
+              onJoinYearChange={setApproveJoinYear}
+              onPaidYearsChange={setApprovePaidYears}
+              mode={approvePlan}
+              lifetimeStartDate={approveLifetimeStartDate}
+              onLifetimeStartDateChange={setApproveLifetimeStartDate}
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setApproveMember(null)}>

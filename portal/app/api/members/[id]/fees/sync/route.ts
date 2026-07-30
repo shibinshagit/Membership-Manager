@@ -42,6 +42,12 @@ export async function PUT(
     const joinYear = normalizeJoinYear(body.join_year ?? existing[0].joined_date);
     const paidYears = parsePaidYears(body.paid_years);
 
+    const lifetimeStartDate =
+      typeof body.lifetime_start_date === 'string' &&
+      /^\d{4}-\d{2}-\d{2}/.test(body.lifetime_start_date)
+        ? body.lifetime_start_date.slice(0, 10)
+        : null;
+
     const sync = await syncMemberFeeYears({
       memberId,
       plan,
@@ -49,6 +55,7 @@ export async function PUT(
       paidYears,
       createdBy: user.id,
       paymentStatusForLifetime: body.lifetime_payment_status === 'unpaid' ? 'unpaid' : 'paid',
+      lifetimeStartDate,
     });
 
     await reconcileMemberStatusesByPayment();

@@ -51,6 +51,29 @@ export function yearsFromJoinToCurrent(joinYear: number): number[] {
   return years;
 }
 
+/**
+ * Years that can have annual fees before lifetime starts.
+ * Inclusive from join year through the year before lifetime start.
+ * Empty if lifetime started in the join year (or earlier).
+ */
+export function yearsBeforeLifetime(joinYear: number, lifetimeStartYear: number): number[] {
+  const start = normalizeJoinYear(joinYear);
+  const lifeYear = Number.parseInt(String(lifetimeStartYear), 10);
+  if (!Number.isFinite(lifeYear)) return yearsFromJoinToCurrent(joinYear);
+  const end = Math.min(currentCalendarYear(), lifeYear - 1);
+  if (end < start) return [];
+  const years: number[] = [];
+  for (let y = start; y <= end; y++) years.push(y);
+  return years;
+}
+
+export function yearFromDateInput(input: unknown, fallback?: number): number {
+  if (typeof input === 'string' && /^\d{4}-\d{2}-\d{2}/.test(input)) {
+    return normalizeJoinYear(input.slice(0, 4), fallback);
+  }
+  return normalizeJoinYear(input, fallback);
+}
+
 export function annualPeriod(year: number) {
   const y = normalizeJoinYear(year);
   return {

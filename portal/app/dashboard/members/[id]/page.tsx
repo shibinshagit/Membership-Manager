@@ -25,6 +25,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -112,6 +113,7 @@ interface Member {
   membership_fee_year?: string | null;
   join_year?: number | null;
   paid_years?: number[] | null;
+  lifetime_started_on?: string | null;
   membership_start_date: string;
   membership_end_date: string | null;
   status: string;
@@ -158,6 +160,9 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
   const [formData, setFormData] = useState<Partial<Member>>({});
   const [joinYear, setJoinYear] = useState(currentCalendarYear());
   const [paidYears, setPaidYears] = useState<number[]>([]);
+  const [lifetimeStartDate, setLifetimeStartDate] = useState(
+    () => new Date().toISOString().slice(0, 10)
+  );
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<Document | null>(null);
   const [feeRecordFilter, setFeeRecordFilter] = useState<FeeRecordFilter>('all');
@@ -169,6 +174,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
   const [identityPhotoUrl, setIdentityPhotoUrl] = useState<string | null>(null);
   const [feeActionLoading, setFeeActionLoading] = useState<number | null>(null);
   const [lifetimeLoading, setLifetimeLoading] = useState(false);
+  const [lifetimeDialogOpen, setLifetimeDialogOpen] = useState(false);
   const identityCardRef = useRef<HTMLDivElement>(null);
 
   const handleDocumentUpload = async () => {
@@ -222,6 +228,18 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
           : Array.isArray(data.member?.paid_years)
             ? data.member.paid_years
             : []
+      );
+      const lifeStart =
+        data.lifetime_started_on ||
+        data.member?.lifetime_started_on ||
+        (data.member?.membership_plan === 'lifetime'
+          ? String(data.member?.membership_start_date || '').slice(0, 10)
+          : '') ||
+        new Date().toISOString().slice(0, 10);
+      setLifetimeStartDate(
+        /^\d{4}-\d{2}-\d{2}/.test(String(lifeStart))
+          ? String(lifeStart).slice(0, 10)
+          : new Date().toISOString().slice(0, 10)
       );
     } catch {
       setError('An error occurred');
@@ -341,7 +359,10 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
         body: JSON.stringify({
           ...formData,
           join_year: joinYear,
-          paid_years: plan === 'annual' ? paidYears : [],
+          paid_years: paidYears,
+          lifetime_start_date: plan === 'lifetime' ? lifetimeStartDate : undefined,
+          membership_start_date:
+            plan === 'lifetime' ? lifetimeStartDate : formData.membership_start_date,
           membership_payment_status:
             plan === 'lifetime'
               ? formData.membership_payment_status
@@ -473,14 +494,14 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
 
   const handleLifetimeAction = async (action: 'upgrade' | 'revoke') => {
     if (!member) return;
-    const ok =
-      action === 'upgrade'
-        ? confirm(
-            'Upgrade this member to Lifetime (AED 750)? Unpaid yearly fees will be cleared and a lifetime invoice will be created. No further annual invoices will be due.'
-          )
-        : confirm(
-            'Remove lifetime access? The member will return to annual calendar-year fees (AED 50/year).'
-          );
+    if (action === 'upgrade') {
+      setLifetimeStartDate(new Date().toISOString().slice(0, 10));
+      setLifetimeDialogOpen(true);
+      return;
+    }
+    const ok = confirm(
+      'Remove lifetime access? The member will return to annual calendar-year fees (50/year).'
+    );
     if (!ok) return;
 
     setLifetimeLoading(true);
@@ -489,7 +510,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
       const res = await fetch(`/api/members/${member.id}/lifetime`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action: 'revoke' }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -499,6 +520,35 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
       await fetchMember();
     } catch {
       setError('Failed to update lifetime membership');
+    } finally {
+      setLifetimeLoading(false);
+    }
+  };
+
+  const confirmLifetimeUpgrade = async () => {
+    if (!member) return;
+    setLifetimeLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/members/${member.id}/lifetime`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'upgrade',
+          join_year: joinYear,
+          paid_years: paidYears,
+          lifetime_start_date: lifetimeStartDate,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Failed to upgrade to lifetime');
+        return;
+      }
+      setLifetimeDialogOpen(false);
+      await fetchMember();
+    } catch {
+      setError('Failed to upgrade to lifetime');
     } finally {
       setLifetimeLoading(false);
     }
@@ -1304,81 +1354,90 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
             <CardHeader>
               <CardTitle className="text-lg">Membership Tracking</CardTitle>
               <CardDescription>
-                Annual membership is for the calendar year (expires 31 Dec). Tick years already paid.
+                Set join year and tick years paid. For lifetime, set when lifetime started — only
+                years before that date (from join) are shown.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {(editing
-                ? (formData.membership_plan || member.membership_plan || 'annual') === 'annual'
-                : (member.membership_plan || 'annual') === 'annual') && (
+              {editing ? (
                 <>
-                  {editing ? (
-                    <MembershipYearsPicker
-                      joinYear={joinYear}
-                      paidYears={paidYears}
-                      onJoinYearChange={setJoinYear}
-                      onPaidYearsChange={setPaidYears}
-                    />
-                  ) : (
+                  <MembershipYearsPicker
+                    joinYear={joinYear}
+                    paidYears={paidYears}
+                    onJoinYearChange={setJoinYear}
+                    onPaidYearsChange={setPaidYears}
+                    mode={
+                      ((formData.membership_plan || member.membership_plan || 'annual') as
+                        | 'annual'
+                        | 'lifetime')
+                    }
+                    lifetimeStartDate={lifetimeStartDate}
+                    onLifetimeStartDateChange={setLifetimeStartDate}
+                  />
+                  {(formData.membership_plan || member.membership_plan || 'annual') === 'lifetime' && (
                     <div className="space-y-2">
-                      <p className="text-sm">
-                        Joined year: <span className="font-medium">{joinYear}</span>
-                      </p>
-                      <p className="text-sm">
-                        Paid years:{' '}
-                        <span className="font-medium">
-                          {paidYears.length > 0 ? paidYears.join(', ') : 'None'}
-                        </span>
-                      </p>
-                      {(() => {
-                        const unpaid = fees
-                          .filter(
-                            (f) =>
-                              f.fee_type === 'annual_membership' && isUnpaidFee(f.payment_status)
-                          )
-                          .map((f) => normalizeFeeYearLabel(f.fee_year));
-                        return unpaid.length > 0 ? (
-                          <p className="text-sm text-amber-700 dark:text-amber-400">
-                            Due: {unpaid.join(', ')}
-                          </p>
-                        ) : (
-                          <p className="text-sm text-emerald-700 dark:text-emerald-400">
-                            Up to date — no annual dues outstanding.
-                          </p>
-                        );
-                      })()}
+                      <Label>Lifetime payment status</Label>
+                      <Select
+                        value={(formData.membership_payment_status as string) || 'unpaid'}
+                        onValueChange={(v: 'paid' | 'unpaid') =>
+                          setFormData({ ...formData, membership_payment_status: v })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="paid">Paid</SelectItem>
+                          <SelectItem value="unpaid">Unpaid</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   )}
                 </>
-              )}
-              {(editing
-                ? (formData.membership_plan || member.membership_plan || 'annual') === 'lifetime'
-                : (member.membership_plan || 'annual') === 'lifetime') && (
+              ) : (
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">
-                    Lifetime members have no yearly billing.
+                  <p className="text-sm capitalize">
+                    Plan: {(member.membership_plan || 'annual').replace('_', ' ')}
                   </p>
-                  <Label>Lifetime payment status</Label>
-                  {editing ? (
-                    <Select
-                      value={(formData.membership_payment_status as string) || 'unpaid'}
-                      onValueChange={(v: 'paid' | 'unpaid') =>
-                        setFormData({ ...formData, membership_payment_status: v })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="paid">Paid</SelectItem>
-                        <SelectItem value="unpaid">Unpaid</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <p className="text-sm capitalize">{member.membership_payment_status || 'unpaid'}</p>
+                  <p className="text-sm">
+                    Joined year: <span className="font-medium">{joinYear}</span>
+                  </p>
+                  {(member.membership_plan || 'annual') === 'lifetime' && (
+                    <p className="text-sm">
+                      Lifetime started:{' '}
+                      <span className="font-medium">
+                        {member.lifetime_started_on
+                          ? new Date(member.lifetime_started_on).toLocaleDateString('en-GB', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                            })
+                          : lifetimeStartDate
+                            ? new Date(lifetimeStartDate).toLocaleDateString('en-GB', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                              })
+                            : '—'}
+                      </span>
+                    </p>
+                  )}
+                  <p className="text-sm">
+                    {(member.membership_plan || 'annual') === 'lifetime'
+                      ? 'Years paid before lifetime: '
+                      : 'Years paid: '}
+                    <span className="font-medium">
+                      {paidYears.length > 0 ? paidYears.join(', ') : 'None'}
+                    </span>
+                  </p>
+                  {(member.membership_plan || 'annual') === 'lifetime' && (
+                    <p className="text-sm capitalize">
+                      Lifetime payment: {member.membership_payment_status || 'unpaid'}
+                    </p>
                   )}
                 </div>
               )}
+
               <div className="space-y-2">
                 <Label>Notes</Label>
                 {editing ? (
@@ -1669,6 +1728,36 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={lifetimeDialogOpen} onOpenChange={setLifetimeDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Upgrade to Lifetime</DialogTitle>
+            <DialogDescription>
+              Set when lifetime started and tick years already paid from joining until the year
+              before that. A 750 lifetime invoice will be created; unpaid yearly dues after that are
+              cleared.
+            </DialogDescription>
+          </DialogHeader>
+          <MembershipYearsPicker
+            joinYear={joinYear}
+            paidYears={paidYears}
+            onJoinYearChange={setJoinYear}
+            onPaidYearsChange={setPaidYears}
+            mode="lifetime"
+            lifetimeStartDate={lifetimeStartDate}
+            onLifetimeStartDateChange={setLifetimeStartDate}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLifetimeDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmLifetimeUpgrade} disabled={lifetimeLoading}>
+              {lifetimeLoading ? 'Upgrading…' : 'Create 750 invoice & upgrade'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

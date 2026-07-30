@@ -39,6 +39,9 @@ export default function NewMemberPage() {
   const [membershipPaymentStatus, setMembershipPaymentStatus] = useState<'paid' | 'unpaid'>('unpaid');
   const [joinYear, setJoinYear] = useState(currentCalendarYear());
   const [paidYears, setPaidYears] = useState<number[]>([]);
+  const [lifetimeStartDate, setLifetimeStartDate] = useState(
+    () => new Date().toISOString().slice(0, 10)
+  );
   const [emiratesIdFile, setEmiratesIdFile] = useState<File | null>(null);
   const [passportFile, setPassportFile] = useState<File | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -145,10 +148,12 @@ export default function NewMemberPage() {
             ? 'paid'
             : 'unpaid',
       join_year: joinYear,
-      paid_years: membershipPlan === 'annual' ? paidYears : [],
+      paid_years: paidYears,
+      lifetime_start_date: membershipPlan === 'lifetime' ? lifetimeStartDate : undefined,
       status: memberStatus,
       joined_date: `${joinYear}-01-01`,
-      membership_start_date: `${joinYear}-01-01`,
+      membership_start_date:
+        membershipPlan === 'lifetime' ? lifetimeStartDate : `${joinYear}-01-01`,
       membership_end_date:
         membershipPlan === 'lifetime' ? null : `${currentCalendarYear()}-12-31`,
       notes: formData.get('notes') || null,
@@ -207,7 +212,7 @@ export default function NewMemberPage() {
       } catch (uploadError) {
         setError(
           uploadError instanceof Error
-            ? `${uploadError.message}. Member was created ‚Äî upload documents from their profile.`
+            ? `${uploadError.message}. Member was created ù upload documents from their profile.`
             : 'Member created but document upload failed.'
         );
         setLoading(false);
@@ -474,7 +479,7 @@ export default function NewMemberPage() {
             </div>
             <div className="space-y-3 pt-2 border-t">
               <p className="text-sm font-medium">Document Uploads (optional)</p>
-              <p className="text-xs text-muted-foreground">JPG, PNG, or PDF ¬∑ max 5MB each</p>
+              <p className="text-xs text-muted-foreground">JPG, PNG, or PDF ù max 5MB each</p>
               <div className="grid gap-4 sm:grid-cols-3">
                 <div className="space-y-2">
                   <Label htmlFor="emirates_id_file">Emirates ID Photo</Label>
@@ -539,7 +544,7 @@ export default function NewMemberPage() {
                 <Label>Ward No. *</Label>
                 <Select value={wardNo} onValueChange={setWardNo}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select ward (1‚Äì16)" />
+                    <SelectValue placeholder="Select ward (1ù16)" />
                   </SelectTrigger>
                   <SelectContent>
                     {WARD_SELECT_OPTIONS.map((ward) => (
@@ -623,7 +628,7 @@ export default function NewMemberPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="annual">Yearly (AED 50 / calendar year)</SelectItem>
-                    <SelectItem value="lifetime">Lifetime (AED 750 ‚Äî no annual dues)</SelectItem>
+                    <SelectItem value="lifetime">Lifetime (AED 750 ù no annual dues)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -636,23 +641,24 @@ export default function NewMemberPage() {
           <CardHeader>
             <CardTitle className="text-lg">Membership Tracking</CardTitle>
             <CardDescription>
-              Annual fees run Jan 1‚ÄìDec 31 of each year. Tick years already collected; unchecked years
-              stay due.
+              Set join year and tick years already collected. For lifetime, set when lifetime
+              started and only mark years before that date.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {membershipPlan === 'annual' && (
-              <MembershipYearsPicker
-                joinYear={joinYear}
-                paidYears={paidYears}
-                onJoinYearChange={setJoinYear}
-                onPaidYearsChange={setPaidYears}
-              />
-            )}
+            <MembershipYearsPicker
+              joinYear={joinYear}
+              paidYears={paidYears}
+              onJoinYearChange={setJoinYear}
+              onPaidYearsChange={setPaidYears}
+              mode={membershipPlan}
+              lifetimeStartDate={lifetimeStartDate}
+              onLifetimeStartDateChange={setLifetimeStartDate}
+            />
             {membershipPlan === 'lifetime' && (
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">
-                  Lifetime members pay AED 750 once and have no yearly billing.
+                  Lifetime members pay 750 once and have no further yearly billing.
                 </p>
                 <Label>Lifetime payment status</Label>
                 <Select
