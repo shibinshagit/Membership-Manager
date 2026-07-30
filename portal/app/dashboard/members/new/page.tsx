@@ -479,7 +479,7 @@ export default function NewMemberPage() {
             </div>
             <div className="space-y-3 pt-2 border-t">
               <p className="text-sm font-medium">Document Uploads (optional)</p>
-              <p className="text-xs text-muted-foreground">JPG, PNG, or PDF ù max 5MB each</p>
+              <p className="text-xs text-muted-foreground">JPG, PNG, or PDF - max 5MB each</p>
               <div className="grid gap-4 sm:grid-cols-3">
                 <div className="space-y-2">
                   <Label htmlFor="emirates_id_file">Emirates ID Photo</Label>
@@ -544,7 +544,7 @@ export default function NewMemberPage() {
                 <Label>Ward No. *</Label>
                 <Select value={wardNo} onValueChange={setWardNo}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select ward (1ù16)" />
+                    <SelectValue placeholder="Select ward (1-16)" />
                   </SelectTrigger>
                   <SelectContent>
                     {WARD_SELECT_OPTIONS.map((ward) => (
@@ -628,7 +628,7 @@ export default function NewMemberPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="annual">Yearly (AED 50 / calendar year)</SelectItem>
-                    <SelectItem value="lifetime">Lifetime (AED 750 ù no annual dues)</SelectItem>
+                    <SelectItem value="lifetime">Lifetime (AED 750 - no annual dues)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
