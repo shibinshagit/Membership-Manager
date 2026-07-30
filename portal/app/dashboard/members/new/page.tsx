@@ -212,7 +212,7 @@ export default function NewMemberPage() {
       } catch (uploadError) {
         setError(
           uploadError instanceof Error
-            ? `${uploadError.message}. Member was created ù upload documents from their profile.`
+            ? `${uploadError.message}. Member was created - upload documents from their profile.`
             : 'Member created but document upload failed.'
         );
         setLoading(false);
