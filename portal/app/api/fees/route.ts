@@ -101,8 +101,8 @@ export async function POST(request: Request) {
     // Verify member exists
     const isAdmin = canManageAllMembers(user.role);
     const member = isAdmin
-      ? await sql`SELECT id FROM members WHERE id = ${member_id}`
-      : await sql`SELECT id FROM members WHERE id = ${member_id} AND assigned_executive_id = ${user.id}`;
+      ? await sql`SELECT id, joined_date FROM members WHERE id = ${member_id}`
+      : await sql`SELECT id, joined_date FROM members WHERE id = ${member_id} AND assigned_executive_id = ${user.id}`;
 
     if (member.length === 0) {
       return NextResponse.json({ error: 'Member not found' }, { status: 404 });
@@ -113,7 +113,8 @@ export async function POST(request: Request) {
     const yearFromDue = new Date(due_date).getFullYear();
     const resolvedPlan = resolveFeePlanOrThrow(
       fee_type,
-      fee_year || (fee_type?.includes('lifetime') ? 'lifetime' : String(yearFromDue))
+      fee_year || (fee_type?.includes('lifetime') ? 'lifetime' : String(yearFromDue)),
+      member[0].joined_date
     );
     const period =
       resolvedPlan.fee_type === 'lifetime_membership'

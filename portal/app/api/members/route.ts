@@ -33,6 +33,9 @@ export async function GET(request: Request) {
   const maritalStatus = searchParams.get('marital_status');
   const gender = searchParams.get('gender');
   const locality = searchParams.get('locality');
+  const membershipPlan = searchParams.get('membership_plan');
+  const joinYearParam = searchParams.get('join_year');
+  const noPayments = searchParams.get('no_payments');
   const exportFormat = searchParams.get('export');
   const page = parseInt(searchParams.get('page') || '1');
   const limit = parseInt(searchParams.get('limit') || '20');
@@ -49,6 +52,12 @@ export async function GET(request: Request) {
     const normalizedMaritalStatus =
       maritalStatus && maritalStatus !== 'all' ? maritalStatus : null;
     const normalizedGender = gender && gender !== 'all' ? gender : null;
+    const normalizedPlan =
+      membershipPlan === 'annual' || membershipPlan === 'lifetime' ? membershipPlan : null;
+    const parsedJoinYear = joinYearParam ? Number.parseInt(joinYearParam, 10) : NaN;
+    const joinYearFilter = Number.isFinite(parsedJoinYear) ? parsedJoinYear : null;
+    const noPaymentsOnly =
+      noPayments === '1' || noPayments === 'true' || noPayments === 'yes';
     const executiveIdInt = executiveId ? Number.parseInt(executiveId, 10) : null;
 
     // Get total count
@@ -61,6 +70,25 @@ export async function GET(request: Request) {
             AND (${normalizedVisaStatus}::text IS NULL OR m.visa_status = ${normalizedVisaStatus})
             AND (${normalizedMaritalStatus}::text IS NULL OR m.marital_status = ${normalizedMaritalStatus})
             AND (${normalizedGender}::text IS NULL OR m.gender = ${normalizedGender})
+            AND (
+              ${normalizedPlan}::text IS NULL
+              OR COALESCE(m.membership_plan, 'annual') = ${normalizedPlan}
+            )
+            AND (
+              ${joinYearFilter}::int IS NULL
+              OR (
+                m.joined_date IS NOT NULL
+                AND EXTRACT(YEAR FROM m.joined_date)::int = ${joinYearFilter}
+              )
+            )
+            AND (
+              ${noPaymentsOnly}::boolean IS NOT TRUE
+              OR NOT EXISTS (
+                SELECT 1 FROM member_memberships mm
+                WHERE mm.member_id = m.id
+                  AND mm.payment_status = 'paid'
+              )
+            )
             AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_member_id = ${executiveIdInt})
             AND (
               ${searchPattern}::text IS NULL OR
@@ -88,6 +116,25 @@ export async function GET(request: Request) {
             AND (${normalizedVisaStatus}::text IS NULL OR m.visa_status = ${normalizedVisaStatus})
             AND (${normalizedMaritalStatus}::text IS NULL OR m.marital_status = ${normalizedMaritalStatus})
             AND (${normalizedGender}::text IS NULL OR m.gender = ${normalizedGender})
+            AND (
+              ${normalizedPlan}::text IS NULL
+              OR COALESCE(m.membership_plan, 'annual') = ${normalizedPlan}
+            )
+            AND (
+              ${joinYearFilter}::int IS NULL
+              OR (
+                m.joined_date IS NOT NULL
+                AND EXTRACT(YEAR FROM m.joined_date)::int = ${joinYearFilter}
+              )
+            )
+            AND (
+              ${noPaymentsOnly}::boolean IS NOT TRUE
+              OR NOT EXISTS (
+                SELECT 1 FROM member_memberships mm
+                WHERE mm.member_id = m.id
+                  AND mm.payment_status = 'paid'
+              )
+            )
             AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_id = ${executiveIdInt})
             AND (
               ${searchPattern}::text IS NULL OR
@@ -115,7 +162,13 @@ export async function GET(request: Request) {
           ? await sql`
               SELECT 
                 m.*,
-                ex.full_name as executive_name
+                ex.full_name as executive_name,
+                COALESCE((
+                  SELECT SUM(mm.amount)::numeric
+                  FROM member_memberships mm
+                  WHERE mm.member_id = m.id
+                    AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                ), 0) AS due
               FROM members m
               LEFT JOIN members ex ON m.assigned_executive_member_id = ex.id
               WHERE (${isAdmin} OR m.assigned_executive_id = ${user.id})
@@ -123,6 +176,25 @@ export async function GET(request: Request) {
                 AND (${normalizedVisaStatus}::text IS NULL OR m.visa_status = ${normalizedVisaStatus})
                 AND (${normalizedMaritalStatus}::text IS NULL OR m.marital_status = ${normalizedMaritalStatus})
                 AND (${normalizedGender}::text IS NULL OR m.gender = ${normalizedGender})
+                AND (
+                  ${normalizedPlan}::text IS NULL
+                  OR COALESCE(m.membership_plan, 'annual') = ${normalizedPlan}
+                )
+                AND (
+                  ${joinYearFilter}::int IS NULL
+                  OR (
+                    m.joined_date IS NOT NULL
+                    AND EXTRACT(YEAR FROM m.joined_date)::int = ${joinYearFilter}
+                  )
+                )
+                AND (
+                  ${noPaymentsOnly}::boolean IS NOT TRUE
+                  OR NOT EXISTS (
+                    SELECT 1 FROM member_memberships mm
+                    WHERE mm.member_id = m.id
+                      AND mm.payment_status = 'paid'
+                  )
+                )
                 AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_member_id = ${executiveIdInt})
                 AND (
                   ${searchPattern}::text IS NULL OR
@@ -146,7 +218,13 @@ export async function GET(request: Request) {
           : await sql`
               SELECT 
                 m.*,
-                u.full_name as executive_name
+                u.full_name as executive_name,
+                COALESCE((
+                  SELECT SUM(mm.amount)::numeric
+                  FROM member_memberships mm
+                  WHERE mm.member_id = m.id
+                    AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                ), 0) AS due
               FROM members m
               LEFT JOIN users u ON m.assigned_executive_id = u.id
               WHERE (${isAdmin} OR m.assigned_executive_id = ${user.id})
@@ -154,6 +232,25 @@ export async function GET(request: Request) {
                 AND (${normalizedVisaStatus}::text IS NULL OR m.visa_status = ${normalizedVisaStatus})
                 AND (${normalizedMaritalStatus}::text IS NULL OR m.marital_status = ${normalizedMaritalStatus})
                 AND (${normalizedGender}::text IS NULL OR m.gender = ${normalizedGender})
+                AND (
+                  ${normalizedPlan}::text IS NULL
+                  OR COALESCE(m.membership_plan, 'annual') = ${normalizedPlan}
+                )
+                AND (
+                  ${joinYearFilter}::int IS NULL
+                  OR (
+                    m.joined_date IS NOT NULL
+                    AND EXTRACT(YEAR FROM m.joined_date)::int = ${joinYearFilter}
+                  )
+                )
+                AND (
+                  ${noPaymentsOnly}::boolean IS NOT TRUE
+                  OR NOT EXISTS (
+                    SELECT 1 FROM member_memberships mm
+                    WHERE mm.member_id = m.id
+                      AND mm.payment_status = 'paid'
+                  )
+                )
                 AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_id = ${executiveIdInt})
                 AND (
                   ${searchPattern}::text IS NULL OR
@@ -186,6 +283,25 @@ export async function GET(request: Request) {
               AND (${normalizedVisaStatus}::text IS NULL OR m.visa_status = ${normalizedVisaStatus})
               AND (${normalizedMaritalStatus}::text IS NULL OR m.marital_status = ${normalizedMaritalStatus})
               AND (${normalizedGender}::text IS NULL OR m.gender = ${normalizedGender})
+              AND (
+                ${normalizedPlan}::text IS NULL
+                OR COALESCE(m.membership_plan, 'annual') = ${normalizedPlan}
+              )
+              AND (
+                ${joinYearFilter}::int IS NULL
+                OR (
+                  m.joined_date IS NOT NULL
+                  AND EXTRACT(YEAR FROM m.joined_date)::int = ${joinYearFilter}
+                )
+              )
+              AND (
+                ${noPaymentsOnly}::boolean IS NOT TRUE
+                OR NOT EXISTS (
+                  SELECT 1 FROM member_memberships mm
+                  WHERE mm.member_id = m.id
+                    AND mm.payment_status = 'paid'
+                )
+              )
               AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_member_id = ${executiveIdInt})
               AND (
                 ${searchPattern}::text IS NULL OR
@@ -218,6 +334,25 @@ export async function GET(request: Request) {
               AND (${normalizedVisaStatus}::text IS NULL OR m.visa_status = ${normalizedVisaStatus})
               AND (${normalizedMaritalStatus}::text IS NULL OR m.marital_status = ${normalizedMaritalStatus})
               AND (${normalizedGender}::text IS NULL OR m.gender = ${normalizedGender})
+              AND (
+                ${normalizedPlan}::text IS NULL
+                OR COALESCE(m.membership_plan, 'annual') = ${normalizedPlan}
+              )
+              AND (
+                ${joinYearFilter}::int IS NULL
+                OR (
+                  m.joined_date IS NOT NULL
+                  AND EXTRACT(YEAR FROM m.joined_date)::int = ${joinYearFilter}
+                )
+              )
+              AND (
+                ${noPaymentsOnly}::boolean IS NOT TRUE
+                OR NOT EXISTS (
+                  SELECT 1 FROM member_memberships mm
+                  WHERE mm.member_id = m.id
+                    AND mm.payment_status = 'paid'
+                )
+              )
               AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_id = ${executiveIdInt})
               AND (
                 ${searchPattern}::text IS NULL OR
@@ -256,6 +391,7 @@ export async function GET(request: Request) {
         'Local Body',
         'Local Area/Ward',
         'Executive',
+        'Due',
       ];
       const escapeCsv = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
       const rows = members.map((member) =>
@@ -274,6 +410,7 @@ export async function GET(request: Request) {
           member.home_local_body,
           member.home_local_area_ward,
           member.executive_name,
+          Number(member.due ?? 0),
         ]
           .map(escapeCsv)
           .join(',')

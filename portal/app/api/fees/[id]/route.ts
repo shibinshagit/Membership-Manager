@@ -88,14 +88,23 @@ export async function PUT(
       return NextResponse.json({ error: 'Fee not found' }, { status: 404 });
     }
 
+    const memberRows = await sql`
+      SELECT joined_date FROM members WHERE id = ${currentFee[0].member_id}
+    `;
+
     const nextStatus =
       payment_status === 'paid' || payment_status === 'unpaid'
         ? payment_status
         : currentFee[0].payment_status;
     const resolvedPlan = resolveFeePlanOrThrow(
       fee_type ?? currentFee[0].fee_type,
-      currentFee[0].fee_year
+      currentFee[0].fee_year,
+      memberRows[0]?.joined_date
     );
+    const nextAmount =
+      amount !== undefined && amount !== null && amount !== ''
+        ? Number(amount)
+        : resolvedPlan.amount;
     const nextPartialAmount = nextStatus === 'partial'
       ? Number(amount ?? currentFee[0].partial_amount ?? 0)
       : currentFee[0].partial_amount;
@@ -105,7 +114,7 @@ export async function PUT(
         fee_type = ${resolvedPlan.fee_type},
         fee_year = ${resolvedPlan.fee_year},
         plan = ${resolvedPlan.fee_type === 'lifetime_membership' ? 'lifetime' : 'annual'},
-        amount = ${resolvedPlan.amount},
+        amount = ${nextAmount},
         currency = ${resolvedPlan.currency},
         due_date = ${due_date ?? currentFee[0].due_date},
         paid_date = ${paid_date !== undefined ? paid_date : currentFee[0].paid_date},

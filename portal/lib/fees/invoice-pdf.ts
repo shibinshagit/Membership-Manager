@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
-import { normalizeFeeYearLabel } from '@/lib/fees-calendar';
+import { formatFeeTypeLabel } from '@/lib/fees-calendar';
 
 export type InvoiceFeeRow = {
   id: number;
@@ -57,8 +57,11 @@ function descriptionForFee(fee: InvoiceFeeRow): string {
   if (fee.fee_type === 'lifetime_membership' || fee.fee_year === 'lifetime') {
     return 'Lifetime Membership (one-time)';
   }
-  const year = normalizeFeeYearLabel(fee.fee_year);
-  return `Annual Membership Fee — Calendar Year ${year}`;
+  return formatFeeTypeLabel({
+    feeType: fee.fee_type,
+    feeYear: fee.fee_year,
+    amount: fee.amount,
+  });
 }
 
 function statusLabel(status: string): string {

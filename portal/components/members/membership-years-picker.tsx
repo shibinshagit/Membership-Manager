@@ -13,10 +13,16 @@ import {
 } from '@/components/ui/select';
 import {
   ORG_START_YEAR,
+  REGISTRATION_AMOUNT,
+  LEGACY_ANNUAL_AMOUNT,
+  ANNUAL_AMOUNT,
+  CURRENT_RATE_FROM_YEAR,
   currentCalendarYear,
   yearFromDateInput,
   yearsBeforeLifetime,
   yearsFromJoinToCurrent,
+  annualAmountForYear,
+  sumAnnualAmounts,
 } from '@/lib/fees-calendar';
 
 type Props = {
@@ -115,7 +121,9 @@ export function MembershipYearsPicker({
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            Organization started {ORG_START_YEAR}. Annual fee is 50 per calendar year.
+            Org from {ORG_START_YEAR}. Join year {REGISTRATION_AMOUNT}; through{' '}
+            {CURRENT_RATE_FROM_YEAR - 1}: {LEGACY_ANNUAL_AMOUNT}/yr; from {CURRENT_RATE_FROM_YEAR}:{' '}
+            {ANNUAL_AMOUNT}/yr.
           </p>
         </div>
 
@@ -187,6 +195,8 @@ export function MembershipYearsPicker({
             {years.map((year) => {
               const id = `fee-year-${year}`;
               const checked = paidSet.has(year);
+              const amount = annualAmountForYear(year, joinYear);
+              const isJoin = year === joinYear;
               return (
                 <label
                   key={year}
@@ -201,7 +211,13 @@ export function MembershipYearsPicker({
                     disabled={disabled}
                     onCheckedChange={(v) => toggleYear(year, v === true)}
                   />
-                  <span>{year}</span>
+                  <span className="flex flex-col leading-tight">
+                    <span>{year}</span>
+                    <span className="text-[11px] text-muted-foreground">
+                      {amount}
+                      {isJoin ? ' Registration' : ''}
+                    </span>
+                  </span>
                 </label>
               );
             })}
@@ -220,7 +236,7 @@ export function MembershipYearsPicker({
           ) : null
         ) : unpaid.length > 0 ? (
           <p className="text-sm text-amber-700 dark:text-amber-400">
-            Due / unpaid: {unpaid.join(', ')} ({unpaid.length * 50})
+            Due / unpaid: {unpaid.join(', ')} ({sumAnnualAmounts(unpaid, joinYear)})
           </p>
         ) : (
           <p className="text-sm text-emerald-700 dark:text-emerald-400">

@@ -70,6 +70,7 @@ import {
 import { MembershipYearsPicker } from '@/components/members/membership-years-picker';
 import {
   currentCalendarYear,
+  formatFeeTypeLabel,
   normalizeFeeYearLabel,
   normalizeJoinYear,
 } from '@/lib/fees-calendar';
@@ -175,6 +176,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
   const [feeActionLoading, setFeeActionLoading] = useState<number | null>(null);
   const [lifetimeLoading, setLifetimeLoading] = useState(false);
   const [lifetimeDialogOpen, setLifetimeDialogOpen] = useState(false);
+  const [statusSaving, setStatusSaving] = useState(false);
   const identityCardRef = useRef<HTMLDivElement>(null);
 
   const handleDocumentUpload = async () => {
@@ -390,6 +392,31 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
     }
   };
 
+  const handleQuickStatusChange = async (nextStatus: string) => {
+    if (!member || nextStatus === member.status) return;
+    setStatusSaving(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/members/${resolvedParams.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Failed to update status');
+        return;
+      }
+      setMember((prev) => (prev ? { ...prev, status: nextStatus } : prev));
+      setFormData((prev) => ({ ...prev, status: nextStatus }));
+      await fetchMember();
+    } catch {
+      setError('Failed to update status');
+    } finally {
+      setStatusSaving(false);
+    }
+  };
+
   const handleDelete = async () => {
     setDeleting(true);
 
@@ -448,17 +475,13 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
     doc.mime_type?.startsWith('image/') ||
     /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(doc.file_name);
 
-  const getFeeTypeLabel = (feeType: string, feeYear?: string) => {
-    if (feeType === 'lifetime_membership' || feeYear === 'lifetime') {
-      return 'Lifetime Membership';
-    }
-    if (feeType === 'annual_membership' || feeYear) {
-      return `Annual Membership ${normalizeFeeYearLabel(feeYear)}`;
-    }
-    return feeType
-      .split('_')
-      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(' ');
+  const getFeeTypeLabel = (feeType: string, feeYear?: string, amount?: number) => {
+    return formatFeeTypeLabel({
+      feeType,
+      feeYear,
+      amount,
+      joinYear,
+    });
   };
 
   const isUnpaidFee = (status: string) => ['unpaid', 'pending', 'partial', 'overdue'].includes(status);
@@ -482,7 +505,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
   };
 
   const handleDeleteFee = async (fee: Fee) => {
-    if (!confirm(`Delete fee record for ${getFeeTypeLabel(fee.fee_type, fee.fee_year)}?`)) return;
+    if (!confirm(`Delete fee record for ${getFeeTypeLabel(fee.fee_type, fee.fee_year, fee.amount)}?`)) return;
     setFeeActionLoading(fee.id);
     try {
       const res = await fetch(`/api/fees/${fee.id}`, { method: 'DELETE' });
@@ -500,7 +523,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
       return;
     }
     const ok = confirm(
-      'Remove lifetime access? The member will return to annual calendar-year fees (50/year).'
+      'Remove lifetime access? The member will return to annual calendar-year fees (join 100; to 2019: 25; from 2020: 50).'
     );
     if (!ok) return;
 
@@ -563,7 +586,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
     const yearLabel =
       fee.fee_year === 'lifetime' ? 'lifetime' : normalizeFeeYearLabel(fee.fee_year);
     const message = encodeURIComponent(
-      `Hello ${member?.full_name},\n\nThis is a payment reminder for your membership fee (${yearLabel}).\n\nInvoice: ${invoiceNo}\nFee Type: ${getFeeTypeLabel(fee.fee_type, fee.fee_year)}\nAmount Due: ${fee.currency} ${fee.amount.toLocaleString()}\nDue Date: ${dueDate}\nStatus: ${fee.payment_status.toUpperCase()}\n\nPlease complete the payment and share the receipt.\n\nThank you.`
+      `Hello ${member?.full_name},\n\nThis is a payment reminder for your membership fee (${yearLabel}).\n\nInvoice: ${invoiceNo}\nFee Type: ${getFeeTypeLabel(fee.fee_type, fee.fee_year, fee.amount)}\nAmount Due: ${fee.currency} ${fee.amount.toLocaleString()}\nDue Date: ${dueDate}\nStatus: ${fee.payment_status.toUpperCase()}\n\nPlease complete the payment and share the receipt.\n\nThank you.`
     );
 
     return `https://wa.me/${phone}?text=${message}`;
@@ -731,15 +754,44 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
         <TabsContent value="details" className="space-y-4">
           {!editing && identityCardData && (
             <Card>
-              <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
-                <div>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <IdCard className="w-5 h-5" />
-                    Membership Identity Card
-                  </CardTitle>
-                  <CardDescription>
-                    Preview, download, or send the membership identity card on WhatsApp.
-                  </CardDescription>
+              <CardHeader className="flex flex-col gap-4 space-y-0 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-3 min-w-0">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <IdCard className="w-5 h-5" />
+                      Membership Identity Card
+                    </CardTitle>
+                    <CardDescription>
+                      Preview, download, or send the membership identity card on WhatsApp.
+                    </CardDescription>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Label className="text-xs text-muted-foreground">Status</Label>
+                    <Select
+                      value={member.status || 'active'}
+                      onValueChange={handleQuickStatusChange}
+                      disabled={statusSaving}
+                    >
+                      <SelectTrigger
+                        className={cn(
+                          'h-8 w-[140px] capitalize',
+                          getStatusColor(member.status)
+                        )}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="inactive">Inactive</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="suspended">Suspended</SelectItem>
+                        <SelectItem value="expired">Expired</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {statusSaving && (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                    )}
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button
@@ -1338,7 +1390,9 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="annual">Yearly (AED 50 / calendar year)</SelectItem>
+                        <SelectItem value="annual">
+                          Yearly (join 100; to 2019: 25; from 2020: 50)
+                        </SelectItem>
                         <SelectItem value="lifetime">Lifetime (AED 750 — no annual dues)</SelectItem>
                       </SelectContent>
                     </Select>
@@ -1670,7 +1724,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                   {filteredFees.map((fee) => (
                     <div key={fee.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg border">
                       <div className="min-w-0">
-                        <p className="font-medium">{getFeeTypeLabel(fee.fee_type, fee.fee_year)}</p>
+                        <p className="font-medium">{getFeeTypeLabel(fee.fee_type, fee.fee_year, fee.amount)}</p>
                         <p className="text-sm text-muted-foreground">
                           Year: {fee.fee_year || '-'} · Due:{' '}
                           {format(new Date(fee.due_date), 'PP')}
@@ -1758,6 +1812,19 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {(member.whatsapp_number || member.phone) && (
+        <a
+          href={`https://wa.me/${(member.whatsapp_number || member.phone || '').replace(/\D/g, '')}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Message on WhatsApp"
+          aria-label="Message on WhatsApp"
+          className="fixed bottom-6 right-6 z-40 inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg transition hover:bg-[#1ebe57] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25D366]/50 lg:bottom-8 lg:right-8"
+        >
+          <WhatsAppIcon className="h-6 w-6" />
+        </a>
+      )}
     </div>
   );
 }

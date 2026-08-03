@@ -6,6 +6,8 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -51,7 +53,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { MembershipYearsPicker } from '@/components/members/membership-years-picker';
-import { currentCalendarYear } from '@/lib/fees-calendar';
+import { currentCalendarYear, ORG_START_YEAR } from '@/lib/fees-calendar';
 
 interface Member {
   id: number;
@@ -93,6 +95,9 @@ export default function MembersPage() {
   const [visaStatus, setVisaStatus] = useState('all');
   const [maritalStatus, setMaritalStatus] = useState('all');
   const [gender, setGender] = useState('all');
+  const [membershipPlanFilter, setMembershipPlanFilter] = useState('all');
+  const [joinYearFilter, setJoinYearFilter] = useState('all');
+  const [noPaymentsOnly, setNoPaymentsOnly] = useState(false);
   const [locality, setLocality] = useState('');
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
@@ -111,6 +116,12 @@ export default function MembersPage() {
   );
 
   const limit = 20;
+  const joinYearOptions = useMemo(() => {
+    const years: number[] = [];
+    const now = currentCalendarYear();
+    for (let y = now; y >= ORG_START_YEAR; y--) years.push(y);
+    return years;
+  }, []);
 
   useEffect(() => {
     if (searchParams.get('status')) {
@@ -215,6 +226,11 @@ export default function MembersPage() {
       if (visaStatus && visaStatus !== 'all') params.set('visa_status', visaStatus);
       if (maritalStatus && maritalStatus !== 'all') params.set('marital_status', maritalStatus);
       if (gender && gender !== 'all') params.set('gender', gender);
+      if (membershipPlanFilter && membershipPlanFilter !== 'all') {
+        params.set('membership_plan', membershipPlanFilter);
+      }
+      if (joinYearFilter && joinYearFilter !== 'all') params.set('join_year', joinYearFilter);
+      if (noPaymentsOnly) params.set('no_payments', '1');
       if (locality) params.set('locality', locality);
       params.set('page', page.toString());
 
@@ -236,7 +252,7 @@ export default function MembersPage() {
     return () => {
       cancelled = true;
     };
-  }, [search, status, visaStatus, maritalStatus, gender, locality, page, reloadToken]);
+  }, [search, status, visaStatus, maritalStatus, gender, membershipPlanFilter, joinYearFilter, noPaymentsOnly, locality, page, reloadToken]);
 
   const pageIds = useMemo(() => members.map((m) => m.id), [members]);
   const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
@@ -309,6 +325,11 @@ export default function MembersPage() {
     if (visaStatus && visaStatus !== 'all') params.set('visa_status', visaStatus);
     if (maritalStatus && maritalStatus !== 'all') params.set('marital_status', maritalStatus);
     if (gender && gender !== 'all') params.set('gender', gender);
+    if (membershipPlanFilter && membershipPlanFilter !== 'all') {
+      params.set('membership_plan', membershipPlanFilter);
+    }
+    if (joinYearFilter && joinYearFilter !== 'all') params.set('join_year', joinYearFilter);
+    if (noPaymentsOnly) params.set('no_payments', '1');
     if (locality) params.set('locality', locality);
     params.set('export', 'csv');
     window.location.href = `/api/members?${params.toString()}`;
@@ -445,6 +466,54 @@ export default function MembersPage() {
                 <SelectItem value="female">Female</SelectItem>
               </SelectContent>
             </Select>
+            <Select
+              value={membershipPlanFilter}
+              onValueChange={(v) => {
+                setMembershipPlanFilter(v);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="w-full sm:w-40">
+                <SelectValue placeholder="Plan" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Plans</SelectItem>
+                <SelectItem value="annual">Annual / Yearly</SelectItem>
+                <SelectItem value="lifetime">Lifetime</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              value={joinYearFilter}
+              onValueChange={(v) => {
+                setJoinYearFilter(v);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="w-full sm:w-40">
+                <SelectValue placeholder="Join year" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Join Years</SelectItem>
+                {joinYearOptions.map((y) => (
+                  <SelectItem key={y} value={String(y)}>
+                    {y}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex h-9 items-center gap-2 rounded-lg border border-input bg-card px-3">
+              <Switch
+                id="no-payments-toggle"
+                checked={noPaymentsOnly}
+                onCheckedChange={(checked) => {
+                  setNoPaymentsOnly(checked === true);
+                  setPage(1);
+                }}
+              />
+              <Label htmlFor="no-payments-toggle" className="cursor-pointer whitespace-nowrap text-sm font-normal">
+                No payments ever
+              </Label>
+            </div>
             <div className="flex flex-wrap gap-2 sm:ml-auto">
               <Button type="submit" variant="secondary">
                 <AppIcon icon={Search} className="h-4 w-4" />
@@ -783,7 +852,7 @@ export default function MembersPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="annual">Yearly (50 / calendar year)</SelectItem>
+                  <SelectItem value="annual">Yearly (join 100; to 2019: 25; from 2020: 50)</SelectItem>
                   <SelectItem value="lifetime">Lifetime (750)</SelectItem>
                 </SelectContent>
               </Select>

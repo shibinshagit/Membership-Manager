@@ -4,6 +4,8 @@ import {
   FEE_TYPE_ANNUAL,
   FEE_TYPE_LIFETIME,
   LIFETIME_AMOUNT,
+  annualAmountForYear,
+  annualFeeNote,
   annualPeriod,
   currentCalendarYear,
   normalizeJoinYear,
@@ -15,18 +17,25 @@ import {
 
 export {
   ANNUAL_AMOUNT,
+  CURRENT_RATE_FROM_YEAR,
   FEE_PLANS,
   FEE_TYPE_ANNUAL,
   FEE_TYPE_LIFETIME,
+  LEGACY_ANNUAL_AMOUNT,
   LIFETIME_AMOUNT,
   ORG_START_YEAR,
+  REGISTRATION_AMOUNT,
+  annualAmountForYear,
+  annualFeeNote,
   annualPeriod,
   currentCalendarYear,
+  formatFeeTypeLabel,
   normalizeFeeType,
   normalizeFeeYearLabel,
   normalizeJoinYear,
   parsePaidYears,
   resolveFeePlanOrThrow,
+  sumAnnualAmounts,
   yearFromDateInput,
   yearsBeforeLifetime,
   yearsFromJoinToCurrent,
@@ -96,6 +105,7 @@ export async function syncMemberFeeYears(options: {
     // Record paid annual history for each checked year
     for (const year of paidSet) {
       const period = annualPeriod(year);
+      const amount = annualAmountForYear(year, joinYear);
       await sql`
         INSERT INTO member_memberships (
           member_id, fee_year, fee_type, plan, amount, currency, due_date, payment_status,
@@ -106,14 +116,14 @@ export async function syncMemberFeeYears(options: {
           ${period.fee_year},
           ${FEE_TYPE_ANNUAL},
           ${'annual'},
-          ${ANNUAL_AMOUNT},
+          ${amount},
           ${'AED'},
           ${period.due_date},
           ${'paid'},
           ${period.start_date},
           ${period.end_date},
           ${period.end_date},
-          ${`Annual membership ${year} (paid before lifetime)`},
+          ${`${annualFeeNote(year, joinYear)}${normalizeJoinYear(joinYear) === year ? '' : ' (paid before lifetime)'}`},
           ${createdBy},
           NOW()
         )
@@ -208,6 +218,7 @@ export async function syncMemberFeeYears(options: {
     const period = annualPeriod(year);
     const isPaid = paidSet.has(year);
     const paidDate = isPaid ? period.end_date : null;
+    const amount = annualAmountForYear(year, joinYear);
 
     await sql`
       INSERT INTO member_memberships (
@@ -219,14 +230,14 @@ export async function syncMemberFeeYears(options: {
         ${period.fee_year},
         ${FEE_TYPE_ANNUAL},
         ${'annual'},
-        ${ANNUAL_AMOUNT},
+        ${amount},
         ${'AED'},
         ${period.due_date},
         ${isPaid ? 'paid' : 'unpaid'},
         ${period.start_date},
         ${period.end_date},
         ${paidDate},
-        ${`Annual membership ${year} (expires 31 Dec ${year})`},
+        ${annualFeeNote(year, joinYear)},
         ${createdBy},
         NOW()
       )

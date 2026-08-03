@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { PageHeader, FilterBar, StatCard } from '@/components/dashboard/page-header';
+import { formatFeeTypeLabel } from '@/lib/fees-calendar';
 import {
   DataList,
   DataListCard,
@@ -77,7 +78,7 @@ interface Stats {
 }
 
 const FEE_OPTIONS = [
-  { value: 'annual_membership', label: 'Annual Membership (calendar year)', amount: '50' },
+  { value: 'annual_membership', label: 'Annual Membership (calendar year)', amount: '25–100' },
   { value: 'lifetime_membership', label: 'Lifetime Membership', amount: '750' },
 ];
 
@@ -128,7 +129,7 @@ export default function FeesPage() {
   });
 
   const handleDeleteFee = async (fee: Fee) => {
-    if (!confirm(`Delete fee for ${fee.member_name} (${getFeeTypeLabel(fee.fee_type, fee.fee_year)})?`)) {
+    if (!confirm(`Delete fee for ${fee.member_name} (${getFeeTypeLabel(fee.fee_type, fee.fee_year, fee.amount)})?`)) {
       return;
     }
     setDeletingId(fee.id);
@@ -184,18 +185,15 @@ export default function FeesPage() {
     }
   };
 
-  const getFeeTypeLabel = (feeType: string, feeYear?: string) => {
-    if (feeType === 'lifetime_membership' || feeYear === 'lifetime') return 'Lifetime Membership';
-    if (feeYear) return `Annual Membership ${feeYear}`;
-    const match = FEE_OPTIONS.find((option) => option.value === feeType);
-    return match ? match.label : feeType.replace(/_/g, ' ');
-  };
+  const getFeeTypeLabel = (feeType: string, feeYear?: string, amount?: number) =>
+    formatFeeTypeLabel({ feeType, feeYear, amount });
+
 
   const generateWhatsAppLink = (fee: Fee) => {
     const phone = (fee.member_whatsapp || fee.member_phone).replace(/\D/g, '');
     const yearLabel = fee.fee_year === 'lifetime' ? 'lifetime' : fee.fee_year || '';
     const message = encodeURIComponent(
-      `Hello ${fee.member_name},\n\nThis is a reminder about your ${getFeeTypeLabel(fee.fee_type, fee.fee_year)} payment of ${fee.currency} ${fee.amount.toLocaleString()}${yearLabel ? ` (${yearLabel})` : ''}.\n\nDue Date: ${format(new Date(fee.due_date), 'PP')}\n\nPlease make the payment at your earliest convenience.\n\nThank you!`
+      `Hello ${fee.member_name},\n\nThis is a reminder about your ${getFeeTypeLabel(fee.fee_type, fee.fee_year, fee.amount)} payment of ${fee.currency} ${fee.amount.toLocaleString()}${yearLabel ? ` (${yearLabel})` : ''}.\n\nDue Date: ${format(new Date(fee.due_date), 'PP')}\n\nPlease make the payment at your earliest convenience.\n\nThank you!`
     );
     return `https://wa.me/${phone}?text=${message}`;
   };
@@ -307,7 +305,7 @@ export default function FeesPage() {
                         href={`/dashboard/members/${fee.member_id}`}
                       />
                       <p className="mt-1 truncate text-sm text-muted-foreground">
-                        {getFeeTypeLabel(fee.fee_type, fee.fee_year)}
+                        {getFeeTypeLabel(fee.fee_type, fee.fee_year, fee.amount)}
                       </p>
                     </div>
                     <StatusBadge
@@ -401,7 +399,7 @@ export default function FeesPage() {
                     />
                   </div>
                   <p className="truncate text-sm text-foreground">
-                    {getFeeTypeLabel(fee.fee_type, fee.fee_year)}
+                    {getFeeTypeLabel(fee.fee_type, fee.fee_year, fee.amount)}
                   </p>
                   <p className="text-sm font-semibold tabular-nums text-foreground">
                     {fee.currency} {Number(fee.amount).toLocaleString()}
@@ -490,7 +488,11 @@ export default function FeesPage() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="p-3 rounded-lg bg-muted">
-              <p className="font-medium">{selectedFee ? getFeeTypeLabel(selectedFee.fee_type) : ''}</p>
+              <p className="font-medium">
+                {selectedFee
+                  ? getFeeTypeLabel(selectedFee.fee_type, selectedFee.fee_year, selectedFee.amount)
+                  : ''}
+              </p>
               <p className="text-lg font-bold">
                 {selectedFee?.currency} {selectedFee?.amount.toLocaleString()}
               </p>

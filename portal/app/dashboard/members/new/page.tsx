@@ -627,7 +627,9 @@ export default function NewMemberPage() {
                     <SelectValue placeholder="Select plan" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="annual">Yearly (AED 50 / calendar year)</SelectItem>
+                    <SelectItem value="annual">
+                      Yearly (join 100; to 2019: 25; from 2020: 50)
+                    </SelectItem>
                     <SelectItem value="lifetime">Lifetime (AED 750 - no annual dues)</SelectItem>
                   </SelectContent>
                 </Select>

@@ -339,20 +339,26 @@ export async function PUT(
     const joinYear = normalizeJoinYear(
       join_year ?? currentMember[0].joined_date ?? currentMember[0].membership_start_date
     );
+    const paidYearsProvided = paid_years !== undefined;
     const paidYears = parsePaidYears(
-      paid_years ??
-        (membership_payment_status === 'paid'
+      paidYearsProvided
+        ? paid_years
+        : membership_payment_status === 'paid'
           ? [Number.parseInt(String(membership_fee_year || joinYear), 10) || joinYear]
-          : [])
+          : []
     );
     const resolvedPaymentStatus =
       resolvedPlan === 'lifetime'
         ? membership_payment_status === 'paid' || membership_payment_status === 'unpaid'
           ? membership_payment_status
           : currentMember[0].membership_payment_status || 'unpaid'
-        : paidYears.includes(currentCalendarYear())
-          ? 'paid'
-          : 'unpaid';
+        : paidYearsProvided
+          ? paidYears.includes(currentCalendarYear())
+            ? 'paid'
+            : 'unpaid'
+          : membership_payment_status === 'paid' || membership_payment_status === 'unpaid'
+            ? membership_payment_status
+            : currentMember[0].membership_payment_status || 'unpaid';
     const lifetimeStart =
       typeof lifetime_start_date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(lifetime_start_date)
         ? lifetime_start_date.slice(0, 10)
