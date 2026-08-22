@@ -68,6 +68,10 @@ import {
   type MemberIdentityCardData,
 } from '@/lib/members/identity-card';
 import { MembershipYearsPicker } from '@/components/members/membership-years-picker';
+import { WelfareMembershipCard } from '@/components/members/welfare-membership-card';
+import { WelfareBadge } from '@/components/members/welfare-badge';
+import type { WelfareSummary } from '@/lib/welfare-policy';
+import { isWelfareFeeRow } from '@/lib/welfare-policy';
 import {
   currentCalendarYear,
   formatFeeTypeLabel,
@@ -118,6 +122,7 @@ interface Member {
   membership_start_date: string;
   membership_end_date: string | null;
   status: string;
+  is_welfare_member?: boolean | null;
   assigned_executive_id: number | null;
   notes: string | null;
   created_at: string;
@@ -176,6 +181,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
   const [feeActionLoading, setFeeActionLoading] = useState<number | null>(null);
   const [lifetimeLoading, setLifetimeLoading] = useState(false);
   const [lifetimeDialogOpen, setLifetimeDialogOpen] = useState(false);
+  const [welfare, setWelfare] = useState<WelfareSummary | null>(null);
   const [statusSaving, setStatusSaving] = useState(false);
   const identityCardRef = useRef<HTMLDivElement>(null);
 
@@ -219,6 +225,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
       setMember(data.member);
       setDocuments(data.documents || []);
       setFees(data.fees || []);
+      setWelfare(data.welfare || null);
       setFormData({ ...data.member });
       const nextJoin = normalizeJoinYear(
         data.join_year ?? data.member?.join_year ?? data.member?.joined_date ?? data.member?.membership_start_date
@@ -498,7 +505,11 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
           paid_date: nextStatus === 'paid' ? new Date().toISOString().slice(0, 10) : null,
         }),
       });
-      if (res.ok) await fetchMember();
+      const data = await res.json();
+      if (res.ok) {
+        if (data.welfare) setWelfare(data.welfare);
+        await fetchMember();
+      }
     } finally {
       setFeeActionLoading(null);
     }
@@ -514,6 +525,8 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
       setFeeActionLoading(null);
     }
   };
+
+  const welfareFees = fees.filter((fee) => isWelfareFeeRow(fee));
 
   const handleLifetimeAction = async (action: 'upgrade' | 'revoke') => {
     if (!member) return;
@@ -592,9 +605,10 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
     return `https://wa.me/${phone}?text=${message}`;
   };
 
-  const paidFeesCount = fees.filter((fee) => fee.payment_status === 'paid').length;
-  const unpaidFeesCount = fees.filter((fee) => isUnpaidFee(fee.payment_status)).length;
+  const paidFeesCount = fees.filter((fee) => !isWelfareFeeRow(fee) && fee.payment_status === 'paid').length;
+  const unpaidFeesCount = fees.filter((fee) => !isWelfareFeeRow(fee) && isUnpaidFee(fee.payment_status)).length;
   const filteredFees = fees.filter((fee) => {
+    if (isWelfareFeeRow(fee)) return false;
     if (feeRecordFilter === 'paid') return fee.payment_status === 'paid';
     if (feeRecordFilter === 'unpaid') return isUnpaidFee(fee.payment_status);
     return true;
@@ -676,6 +690,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <h1 className="text-xl sm:text-2xl font-semibold text-foreground break-words">{member.full_name}</h1>
+              {member.is_welfare_member || welfare?.is_welfare_member ? <WelfareBadge /> : null}
               <span className={cn('text-xs px-2 py-1 rounded-full capitalize', getStatusColor(member.status))}>
                 {member.status}
               </span>
@@ -1647,6 +1662,17 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
         </TabsContent>
 
         <TabsContent value="fees" className="space-y-4">
+          {welfare ? (
+            <WelfareMembershipCard
+              memberId={member.id}
+              welfare={welfare}
+              welfareFees={welfareFees}
+              onUpdated={fetchMember}
+              onToggleFeePaid={handleToggleFeePaid}
+              onDeleteFee={handleDeleteFee}
+              feeActionLoading={feeActionLoading}
+            />
+          ) : null}
           <Card>
             <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -1693,7 +1719,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                   variant={feeRecordFilter === 'all' ? 'default' : 'outline'}
                   onClick={() => setFeeRecordFilter('all')}
                 >
-                  All ({fees.length})
+                  All ({fees.filter((fee) => !isWelfareFeeRow(fee)).length})
                 </Button>
                 <Button
                   type="button"
@@ -1713,8 +1739,8 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                 </Button>
               </div>
 
-              {fees.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">No fees recorded yet</p>
+              {fees.filter((fee) => !isWelfareFeeRow(fee)).length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">No membership fees recorded yet</p>
               ) : filteredFees.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">
                   No {feeRecordFilter} records found for this member

@@ -16,6 +16,7 @@ import {
   ensureAssignedExecutiveMemberColumn,
   ensureExtendedMemberProfileColumns,
   ensureMemberMembershipsTable,
+  ensureWelfareColumns,
   hasAssignedExecutiveMemberColumn,
 } from '@/lib/db/compat';
 
@@ -58,7 +59,13 @@ export async function GET(request: Request) {
     const joinYearFilter = Number.isFinite(parsedJoinYear) ? parsedJoinYear : null;
     const noPaymentsOnly =
       noPayments === '1' || noPayments === 'true' || noPayments === 'yes';
+    const welfareOnly =
+      searchParams.get('welfare') === '1' ||
+      searchParams.get('welfare') === 'true' ||
+      searchParams.get('welfare') === 'yes';
     const executiveIdInt = executiveId ? Number.parseInt(executiveId, 10) : null;
+
+    await ensureWelfareColumns();
 
     // Get total count
     const countResult = hasExecutiveMemberColumn
@@ -88,6 +95,10 @@ export async function GET(request: Request) {
                 WHERE mm.member_id = m.id
                   AND mm.payment_status = 'paid'
               )
+            )
+            AND (
+              ${welfareOnly}::boolean IS NOT TRUE
+              OR COALESCE(m.is_welfare_member, false) = true
             )
             AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_member_id = ${executiveIdInt})
             AND (
@@ -134,6 +145,10 @@ export async function GET(request: Request) {
                 WHERE mm.member_id = m.id
                   AND mm.payment_status = 'paid'
               )
+            )
+            AND (
+              ${welfareOnly}::boolean IS NOT TRUE
+              OR COALESCE(m.is_welfare_member, false) = true
             )
             AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_id = ${executiveIdInt})
             AND (
@@ -195,6 +210,10 @@ export async function GET(request: Request) {
                       AND mm.payment_status = 'paid'
                   )
                 )
+                AND (
+                  ${welfareOnly}::boolean IS NOT TRUE
+                  OR COALESCE(m.is_welfare_member, false) = true
+                )
                 AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_member_id = ${executiveIdInt})
                 AND (
                   ${searchPattern}::text IS NULL OR
@@ -251,6 +270,10 @@ export async function GET(request: Request) {
                       AND mm.payment_status = 'paid'
                   )
                 )
+                AND (
+                  ${welfareOnly}::boolean IS NOT TRUE
+                  OR COALESCE(m.is_welfare_member, false) = true
+                )
                 AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_id = ${executiveIdInt})
                 AND (
                   ${searchPattern}::text IS NULL OR
@@ -275,7 +298,13 @@ export async function GET(request: Request) {
         ? await sql`
             SELECT 
               m.*,
-              ex.full_name as executive_name
+              ex.full_name as executive_name,
+              COALESCE((
+                SELECT SUM(mm.amount)::numeric
+                FROM member_memberships mm
+                WHERE mm.member_id = m.id
+                  AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+              ), 0) AS due
             FROM members m
             LEFT JOIN members ex ON m.assigned_executive_member_id = ex.id
             WHERE (${isAdmin} OR m.assigned_executive_id = ${user.id})
@@ -302,6 +331,10 @@ export async function GET(request: Request) {
                     AND mm.payment_status = 'paid'
                 )
               )
+              AND (
+                ${welfareOnly}::boolean IS NOT TRUE
+                OR COALESCE(m.is_welfare_member, false) = true
+              )
               AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_member_id = ${executiveIdInt})
               AND (
                 ${searchPattern}::text IS NULL OR
@@ -326,7 +359,13 @@ export async function GET(request: Request) {
         : await sql`
             SELECT 
               m.*,
-              u.full_name as executive_name
+              u.full_name as executive_name,
+              COALESCE((
+                SELECT SUM(mm.amount)::numeric
+                FROM member_memberships mm
+                WHERE mm.member_id = m.id
+                  AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+              ), 0) AS due
             FROM members m
             LEFT JOIN users u ON m.assigned_executive_id = u.id
             WHERE (${isAdmin} OR m.assigned_executive_id = ${user.id})
@@ -352,6 +391,10 @@ export async function GET(request: Request) {
                   WHERE mm.member_id = m.id
                     AND mm.payment_status = 'paid'
                 )
+              )
+              AND (
+                ${welfareOnly}::boolean IS NOT TRUE
+                OR COALESCE(m.is_welfare_member, false) = true
               )
               AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_id = ${executiveIdInt})
               AND (

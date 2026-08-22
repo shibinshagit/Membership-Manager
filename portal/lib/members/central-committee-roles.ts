@@ -48,6 +48,7 @@ export const DASHBOARD_NAV_ICONS = {
   members: UsersRound,
   documents: FolderOpen,
   fees: CircleDollarSign,
+  accounts: Wallet,
   centralCommittee: Building2,
   committee: Network,
   settings: Settings2,

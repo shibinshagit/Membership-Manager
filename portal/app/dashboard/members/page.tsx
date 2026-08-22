@@ -44,6 +44,7 @@ import {
   MEMBER_LIST_COLS,
 } from '@/components/dashboard/data-list';
 import { AppIcon } from '@/components/icons/app-icon';
+import { WhatsAppIcon } from '@/components/icons/whatsapp-icon';
 import {
   Dialog,
   DialogContent,
@@ -53,6 +54,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { MembershipYearsPicker } from '@/components/members/membership-years-picker';
+import { WelfareBadge } from '@/components/members/welfare-badge';
 import { currentCalendarYear, ORG_START_YEAR } from '@/lib/fees-calendar';
 
 interface Member {
@@ -61,6 +63,7 @@ interface Member {
   full_name: string;
   email: string | null;
   phone: string;
+  whatsapp_number?: string | null;
   status: string;
   membership_type: string;
   membership_plan?: string | null;
@@ -72,6 +75,26 @@ interface Member {
   uae_area?: string | null;
   home_district?: string | null;
   created_at: string;
+  due?: number | string;
+  is_welfare_member?: boolean | null;
+}
+
+function memberDueAmount(member: Member): number {
+  return Number(member.due ?? 0);
+}
+
+function generateMemberDueWhatsAppLink(member: Member): string | null {
+  const due = memberDueAmount(member);
+  if (due <= 0) return null;
+
+  const phone = (member.whatsapp_number || member.phone || '').replace(/\D/g, '');
+  if (!phone) return null;
+
+  const message = encodeURIComponent(
+    `Hello ${member.full_name},\n\nThis is a reminder about your outstanding membership dues.\n\nTotal Amount Due: AED ${due.toLocaleString()}\n\nPlease make the payment at your earliest convenience and share the receipt.\n\nThank you!`
+  );
+
+  return `https://wa.me/${phone}?text=${message}`;
 }
 
 const STATUS_OPTIONS = [
@@ -98,6 +121,7 @@ export default function MembersPage() {
   const [membershipPlanFilter, setMembershipPlanFilter] = useState('all');
   const [joinYearFilter, setJoinYearFilter] = useState('all');
   const [noPaymentsOnly, setNoPaymentsOnly] = useState(false);
+  const [welfareOnly, setWelfareOnly] = useState(false);
   const [locality, setLocality] = useState('');
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
@@ -231,6 +255,7 @@ export default function MembersPage() {
       }
       if (joinYearFilter && joinYearFilter !== 'all') params.set('join_year', joinYearFilter);
       if (noPaymentsOnly) params.set('no_payments', '1');
+      if (welfareOnly) params.set('welfare', '1');
       if (locality) params.set('locality', locality);
       params.set('page', page.toString());
 
@@ -252,7 +277,7 @@ export default function MembersPage() {
     return () => {
       cancelled = true;
     };
-  }, [search, status, visaStatus, maritalStatus, gender, membershipPlanFilter, joinYearFilter, noPaymentsOnly, locality, page, reloadToken]);
+  }, [search, status, visaStatus, maritalStatus, gender, membershipPlanFilter, joinYearFilter, noPaymentsOnly, welfareOnly, locality, page, reloadToken]);
 
   const pageIds = useMemo(() => members.map((m) => m.id), [members]);
   const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
@@ -330,6 +355,7 @@ export default function MembersPage() {
     }
     if (joinYearFilter && joinYearFilter !== 'all') params.set('join_year', joinYearFilter);
     if (noPaymentsOnly) params.set('no_payments', '1');
+    if (welfareOnly) params.set('welfare', '1');
     if (locality) params.set('locality', locality);
     params.set('export', 'csv');
     window.location.href = `/api/members?${params.toString()}`;
@@ -514,6 +540,19 @@ export default function MembersPage() {
                 No payments ever
               </Label>
             </div>
+            <div className="flex h-9 items-center gap-2 rounded-lg border border-input bg-card px-3">
+              <Switch
+                id="welfare-only-toggle"
+                checked={welfareOnly}
+                onCheckedChange={(checked) => {
+                  setWelfareOnly(checked === true);
+                  setPage(1);
+                }}
+              />
+              <Label htmlFor="welfare-only-toggle" className="cursor-pointer whitespace-nowrap text-sm font-normal">
+                Welfare members
+              </Label>
+            </div>
             <div className="flex flex-wrap gap-2 sm:ml-auto">
               <Button type="submit" variant="secondary">
                 <AppIcon icon={Search} className="h-4 w-4" />
@@ -628,6 +667,8 @@ export default function MembersPage() {
             <div className="md:hidden">
               {members.map((member) => {
                 const isSelected = selectedIds.has(member.id);
+                const due = memberDueAmount(member);
+                const dueWhatsAppLink = generateMemberDueWhatsAppLink(member);
                 return (
                   <DataListCard
                     key={member.id}
@@ -650,15 +691,40 @@ export default function MembersPage() {
                       </div>
                       <EntityAvatar name={member.full_name} className="h-9 w-9 text-xs" />
                       <div className="min-w-0 flex-1 overflow-hidden">
-                        <p className="truncate font-medium">{member.full_name}</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="truncate font-medium">{member.full_name}</p>
+                          {member.is_welfare_member ? <WelfareBadge /> : null}
+                        </div>
                         <p className="truncate text-xs text-muted-foreground">
                           {member.member_id}
                           {member.phone ? ` · ${member.phone}` : ''}
                         </p>
+                        <p
+                          className={cn(
+                            'mt-1 text-xs font-medium',
+                            due > 0 ? 'text-destructive' : 'text-muted-foreground'
+                          )}
+                        >
+                          Due: AED {due.toLocaleString()}
+                        </p>
                       </div>
-                      <StatusBadge tone={memberStatusTone(member.status)}>
-                        {member.status}
-                      </StatusBadge>
+                      <div className="flex shrink-0 flex-col items-end gap-2">
+                        <StatusBadge tone={memberStatusTone(member.status)}>
+                          {member.status}
+                        </StatusBadge>
+                        {dueWhatsAppLink ? (
+                          <a
+                            href={dueWhatsAppLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/80 bg-card hover:bg-muted"
+                            title="Send due reminder on WhatsApp"
+                          >
+                            <WhatsAppIcon className="h-4 w-4 text-[#25D366]" />
+                          </a>
+                        ) : null}
+                      </div>
                     </div>
                     {member.status === 'pending' ? (
                       <div
@@ -693,7 +759,7 @@ export default function MembersPage() {
               })}
             </div>
 
-            <DataListScroll className="hidden md:block" minWidth="52rem">
+            <DataListScroll className="hidden md:block" minWidth="58rem">
               <DataListHead
                 className={MEMBER_LIST_COLS}
                 columns={[
@@ -715,11 +781,14 @@ export default function MembersPage() {
                   { key: 'phone', label: 'Phone' },
                   { key: 'status', label: 'Status' },
                   { key: 'role', label: 'Role' },
+                  { key: 'due', label: 'Due' },
                   { key: 'actions', label: 'Actions', className: 'text-right' },
                 ]}
               />
               {members.map((member) => {
                 const isSelected = selectedIds.has(member.id);
+                const due = memberDueAmount(member);
+                const dueWhatsAppLink = generateMemberDueWhatsAppLink(member);
                 return (
                   <DataListRow
                     key={member.id}
@@ -746,7 +815,10 @@ export default function MembersPage() {
                     <div className="flex min-w-0 items-center gap-3 overflow-hidden">
                       <EntityAvatar name={member.full_name} className="h-9 w-9 text-xs" />
                       <div className="min-w-0 overflow-hidden">
-                        <p className="truncate font-medium">{member.full_name}</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="truncate font-medium">{member.full_name}</p>
+                          {member.is_welfare_member ? <WelfareBadge /> : null}
+                        </div>
                         {member.email ? (
                           <p className="truncate text-sm text-muted-foreground">{member.email}</p>
                         ) : null}
@@ -761,11 +833,30 @@ export default function MembersPage() {
                     <p className="truncate capitalize text-sm text-muted-foreground">
                       {member.membership_type.replace(/_/g, ' ')}
                     </p>
+                    <p
+                      className={cn(
+                        'truncate text-sm font-medium tabular-nums',
+                        due > 0 ? 'text-destructive' : 'text-muted-foreground'
+                      )}
+                    >
+                      AED {due.toLocaleString()}
+                    </p>
                     <div
-                      className="flex justify-end !overflow-visible"
+                      className="flex justify-end gap-1 !overflow-visible"
                       onClick={(e) => e.stopPropagation()}
                       onKeyDown={(e) => e.stopPropagation()}
                     >
+                      {dueWhatsAppLink ? (
+                        <a
+                          href={dueWhatsAppLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/80 bg-card hover:bg-muted"
+                          title="Send due reminder on WhatsApp"
+                        >
+                          <WhatsAppIcon className="h-4 w-4 text-[#25D366]" />
+                        </a>
+                      ) : null}
                       {member.status === 'pending' ? (
                         <div className="flex gap-1">
                           <Button
@@ -789,9 +880,9 @@ export default function MembersPage() {
                             <AppIcon icon={X} className="h-3.5 w-3.5" />
                           </Button>
                         </div>
-                      ) : (
+                      ) : !dueWhatsAppLink ? (
                         <span className="text-xs text-muted-foreground">—</span>
-                      )}
+                      ) : null}
                     </div>
                   </DataListRow>
                 );

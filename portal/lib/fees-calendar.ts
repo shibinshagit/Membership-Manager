@@ -3,6 +3,7 @@
 export const ORG_START_YEAR = 2013;
 export const FEE_TYPE_ANNUAL = 'annual_membership';
 export const FEE_TYPE_LIFETIME = 'lifetime_membership';
+export const FEE_TYPE_WELFARE = 'welfare_contribution';
 
 /** Joining / registration year fee (replaces annual for that year). */
 export const REGISTRATION_AMOUNT = 100;
@@ -83,6 +84,13 @@ export function formatFeeTypeLabel(options: {
   const feeYear = options.feeYear || '';
   if (feeType === FEE_TYPE_LIFETIME || feeYear === 'lifetime') {
     return 'Lifetime Membership';
+  }
+  if (feeType === FEE_TYPE_WELFARE || String(feeYear || '').startsWith('welfare')) {
+    if (feeYear === 'welfare_lump') return 'Welfare Membership (One Time)';
+    if (feeYear === 'welfare_settle') return 'Welfare Membership (Settlement)';
+    const inst = String(feeYear || '').match(/^welfare_i(\d+)$/i);
+    if (inst) return `Welfare Installment ${Number.parseInt(inst[1], 10)}`;
+    return 'Welfare Membership';
   }
 
   const yearLabel = normalizeFeeYearLabel(feeYear);

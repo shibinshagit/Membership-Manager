@@ -6,6 +6,8 @@ import {
   resolveFeePlanOrThrow,
 } from '@/lib/fees-policy';
 import { ensureMemberMembershipsTable } from '@/lib/db/compat';
+import { FEE_TYPE_WELFARE } from '@/lib/welfare-policy';
+import { getWelfareSummaryForMember, syncWelfareMemberStatus } from '@/lib/welfare-service';
 
 export async function GET(
   request: Request,
@@ -96,11 +98,22 @@ export async function PUT(
       payment_status === 'paid' || payment_status === 'unpaid'
         ? payment_status
         : currentFee[0].payment_status;
-    const resolvedPlan = resolveFeePlanOrThrow(
-      fee_type ?? currentFee[0].fee_type,
-      currentFee[0].fee_year,
-      memberRows[0]?.joined_date
-    );
+    const isWelfareFee =
+      (fee_type ?? currentFee[0].fee_type) === FEE_TYPE_WELFARE ||
+      String(currentFee[0].fee_year || '').startsWith('welfare');
+
+    const resolvedPlan = isWelfareFee
+      ? {
+          fee_type: FEE_TYPE_WELFARE,
+          fee_year: currentFee[0].fee_year,
+          currency: 'AED',
+          amount: Number(amount ?? currentFee[0].amount),
+        }
+      : resolveFeePlanOrThrow(
+          fee_type ?? currentFee[0].fee_type,
+          currentFee[0].fee_year,
+          memberRows[0]?.joined_date
+        );
     const nextAmount =
       amount !== undefined && amount !== null && amount !== ''
         ? Number(amount)
@@ -113,7 +126,13 @@ export async function PUT(
       UPDATE member_memberships SET
         fee_type = ${resolvedPlan.fee_type},
         fee_year = ${resolvedPlan.fee_year},
-        plan = ${resolvedPlan.fee_type === 'lifetime_membership' ? 'lifetime' : 'annual'},
+        plan = ${
+          resolvedPlan.fee_type === 'lifetime_membership'
+            ? 'lifetime'
+            : resolvedPlan.fee_type === FEE_TYPE_WELFARE
+              ? 'welfare'
+              : 'annual'
+        },
         amount = ${nextAmount},
         currency = ${resolvedPlan.currency},
         due_date = ${due_date ?? currentFee[0].due_date},
@@ -129,6 +148,12 @@ export async function PUT(
     `;
 
     await reconcileMemberStatusesByPayment();
+    const memberId = Number(currentFee[0].member_id);
+    if (isWelfareFee) {
+      await syncWelfareMemberStatus(memberId);
+    }
+
+    const welfare = isWelfareFee ? await getWelfareSummaryForMember(memberId) : undefined;
 
     // Log the update
     await sql`
@@ -136,7 +161,7 @@ export async function PUT(
       VALUES (${user.id}, 'update', 'fee', ${id}, ${JSON.stringify(currentFee[0])}, ${JSON.stringify(result[0])})
     `;
 
-    return NextResponse.json({ fee: result[0] });
+    return NextResponse.json({ fee: result[0], welfare });
   } catch (error) {
     console.error('Error updating fee:', error);
     return NextResponse.json({ error: 'Failed to update fee' }, { status: 500 });
@@ -164,6 +189,12 @@ export async function DELETE(
 
     await sql`DELETE FROM member_memberships WHERE id = ${id}`;
     await reconcileMemberStatusesByPayment();
+
+    const isWelfareFee =
+      fee[0].fee_type === FEE_TYPE_WELFARE || String(fee[0].fee_year || '').startsWith('welfare');
+    if (isWelfareFee) {
+      await syncWelfareMemberStatus(Number(fee[0].member_id));
+    }
 
     // Log deletion
     await sql`

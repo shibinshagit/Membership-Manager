@@ -63,6 +63,7 @@ const navGroups: Array<{ label: string; items: NavItem[] }> = [
       { name: 'Members', href: '/dashboard/members', icon: DASHBOARD_NAV_ICONS.members },
       { name: 'Documents', href: '/dashboard/documents', icon: DASHBOARD_NAV_ICONS.documents },
       { name: 'Fees & Payments', href: '/dashboard/fees', icon: DASHBOARD_NAV_ICONS.fees },
+      { name: 'Accounts', href: '/dashboard/accounts', icon: DASHBOARD_NAV_ICONS.accounts, adminOnly: true },
     ],
   },
   {

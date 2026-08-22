@@ -5,6 +5,7 @@ let extendedMemberProfileColumnsEnsured = false;
 let memberMembershipsTableEnsured = false;
 let committeeTablesEnsured = false;
 let visaDocumentTypeEnsured = false;
+let welfareColumnsEnsured = false;
 
 export async function hasAssignedExecutiveMemberColumn(): Promise<boolean> {
   if (hasAssignedExecutiveMemberColumnCache !== null) {
@@ -129,6 +130,7 @@ export async function ensureMemberMembershipsTable(): Promise<void> {
     WHERE fee_type IS NULL
   `;
   memberMembershipsTableEnsured = true;
+  await ensureWelfareColumns();
 }
 
 export async function ensureCommitteeTables(): Promise<void> {
@@ -179,4 +181,73 @@ export async function ensureVisaDocumentType(): Promise<void> {
   `;
 
   visaDocumentTypeEnsured = true;
+}
+
+export async function ensureWelfareColumns(): Promise<void> {
+  if (welfareColumnsEnsured) return;
+
+  await sql`ALTER TABLE members ADD COLUMN IF NOT EXISTS is_welfare_member BOOLEAN DEFAULT false`;
+  await sql`ALTER TABLE members ADD COLUMN IF NOT EXISTS welfare_payment_mode VARCHAR(20)`;
+  await sql`ALTER TABLE members ADD COLUMN IF NOT EXISTS welfare_joined_date DATE`;
+
+  await sql`
+    ALTER TABLE member_memberships DROP CONSTRAINT IF EXISTS member_memberships_fee_type_check
+  `;
+  await sql`
+    ALTER TABLE member_memberships ADD CONSTRAINT member_memberships_fee_type_check
+    CHECK (fee_type IN ('annual_membership', 'lifetime_membership', 'welfare_contribution'))
+  `;
+  await sql`
+    ALTER TABLE member_memberships DROP CONSTRAINT IF EXISTS member_memberships_plan_check
+  `;
+  await sql`
+    ALTER TABLE member_memberships ADD CONSTRAINT member_memberships_plan_check
+    CHECK (plan IN ('annual', 'lifetime', 'welfare'))
+  `;
+
+  welfareColumnsEnsured = true;
+}
+
+let accountsTablesEnsured = false;
+
+export async function ensureAccountsTables(): Promise<void> {
+  if (accountsTablesEnsured) return;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS expense_entries (
+      id SERIAL PRIMARY KEY,
+      entry_year INTEGER NOT NULL,
+      entry_date DATE NOT NULL,
+      category VARCHAR(100) NOT NULL,
+      description TEXT,
+      amount DECIMAL(10, 2) NOT NULL CHECK (amount > 0),
+      currency VARCHAR(10) DEFAULT 'AED',
+      payment_method VARCHAR(50),
+      reference VARCHAR(100),
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    )
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS petty_cash_entries (
+      id SERIAL PRIMARY KEY,
+      entry_year INTEGER NOT NULL,
+      entry_date DATE NOT NULL,
+      entry_type VARCHAR(10) NOT NULL CHECK (entry_type IN ('income', 'expense')),
+      category VARCHAR(100),
+      description TEXT,
+      amount DECIMAL(10, 2) NOT NULL CHECK (amount > 0),
+      currency VARCHAR(10) DEFAULT 'AED',
+      created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS idx_expense_entries_year ON expense_entries(entry_year)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_expense_entries_date ON expense_entries(entry_date)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_petty_cash_entries_year ON petty_cash_entries(entry_year)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_petty_cash_entries_date ON petty_cash_entries(entry_date)`;
+
+  accountsTablesEnsured = true;
 }

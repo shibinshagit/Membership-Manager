@@ -307,7 +307,7 @@ export const DOC_LIST_COLS =
   'grid-cols-[minmax(12rem,1.3fr)_minmax(10rem,1.2fr)_5rem_7.5rem_7rem]';
 
 export const MEMBER_LIST_COLS =
-  'grid-cols-[2.25rem_7rem_minmax(12rem,1.4fr)_8rem_6.5rem_7rem_5.5rem]';
+  'grid-cols-[2.25rem_7rem_minmax(12rem,1.4fr)_8rem_6.5rem_6rem_5.5rem_4.5rem]';
 
 export const EXEC_LIST_COLS =
   'grid-cols-[minmax(12rem,1.5fr)_7.5rem_8rem_6.5rem_5rem]';

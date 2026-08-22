@@ -20,8 +20,10 @@ import {
   ensureAssignedExecutiveMemberColumn,
   ensureExtendedMemberProfileColumns,
   ensureMemberMembershipsTable,
+  ensureWelfareColumns,
   hasAssignedExecutiveMemberColumn,
 } from '@/lib/db/compat';
+import { getWelfareSummaryForMember } from '@/lib/welfare-service';
 
 function currentFeeYear(): string {
   return String(currentCalendarYear());
@@ -99,6 +101,7 @@ export async function GET(
 
   try {
     await ensureMemberMembershipsTable();
+    await ensureWelfareColumns();
     const hasExecutiveMemberColumn = await ensureAssignedExecutiveMemberColumn();
     const isAdmin = canManageAllMembers(user.role);
 
@@ -201,11 +204,13 @@ export async function GET(
     `;
 
     const yearsMeta = deriveJoinAndPaidYears(members[0] as Record<string, unknown>, fees);
+    const welfare = await getWelfareSummaryForMember(Number(id));
 
     return NextResponse.json({
       member: { ...members[0], ...yearsMeta },
       documents,
       fees,
+      welfare,
       join_year: yearsMeta.join_year,
       paid_years: yearsMeta.paid_years,
       lifetime_started_on: yearsMeta.lifetime_started_on,
