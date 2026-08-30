@@ -104,7 +104,7 @@ function generateMemberWhatsAppLink(
   }
 
   const message = encodeURIComponent(
-    `Dear ${member.full_name},\n\nGreetings from the Madikkai Pravasi Association!\n\nFirst, a heartfelt thank you to all members who have already cleared their membership dues. Your accounts are fully active and in good standing, ensuring your continued eligibility for all association benefits, and upcoming community programs.\n\nPlease Note: This is our official number. Kindly save this number and ensure that all future official communications and updates from the association are received and checked through this channel.\n\nWe truly appreciate your cooperation, continuous support, and active participation in our community.\n\nThank you!\n\nRegards,\nMadikkai Pravasi Association\nReg No: KSR/124/2026\nMadikai-Kasargod, Kerala-India`
+    `Dear ${member.full_name},\n\nGreetings from the Madikai Pravasi Association!\n\nFirst, a heartfelt thank you to all members who have already cleared their membership dues. Your accounts are fully active and in good standing, ensuring your continued eligibility for all association benefits, and upcoming community programs.\n\nPlease Note: This is our official number. Kindly save this number and ensure that all future official communications and updates from the association are received and checked through this channel.\n\nWe truly appreciate your cooperation, continuous support, and active participation in our community.\n\nThank you!\n\nRegards,\nMadikai Pravasi Association\nReg No: KSR/124/2026\nMadikai-Kasargod, Kerala-India`
   );
   return { href: `https://wa.me/${phone}?text=${message}`, kind: 'clear' };
 }
