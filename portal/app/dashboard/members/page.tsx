@@ -83,18 +83,73 @@ function memberDueAmount(member: Member): number {
   return Number(member.due ?? 0);
 }
 
-function generateMemberDueWhatsAppLink(member: Member): string | null {
-  const due = memberDueAmount(member);
-  if (due <= 0) return null;
-
+function memberWhatsAppPhone(member: Member): string | null {
   const phone = (member.whatsapp_number || member.phone || '').replace(/\D/g, '');
+  return phone || null;
+}
+
+function generateMemberWhatsAppLink(
+  member: Member
+): { href: string; kind: 'due' | 'clear' } | null {
+  const phone = memberWhatsAppPhone(member);
   if (!phone) return null;
 
-  const message = encodeURIComponent(
-    `Hello ${member.full_name},\n\nThis is a reminder about your outstanding membership dues.\n\nTotal Amount Due: AED ${due.toLocaleString()}\n\nPlease make the payment at your earliest convenience and share the receipt.\n\nThank you!`
-  );
+  const due = memberDueAmount(member);
 
-  return `https://wa.me/${phone}?text=${message}`;
+  if (due > 0) {
+    const message = encodeURIComponent(
+      `Dear ${member.full_name},\n\nThis is a friendly reminder that your membership payment is still outstanding.\n\nAmount Due: ${due.toLocaleString()}\n\nKindly make the payment at your earliest convenience to keep your membership active and in good standing.\n\nPlease note that members with pending membership dues will not be eligible to receive any benefits, assistance, or welfare schemes offered by the organization until their membership is renewed and dues are cleared.\n\nPlease Note: This is our official number. Kindly save this number and ensure that all future official communications and updates from the association are received and checked through this channel.\n\nWe appreciate your prompt attention to this matter and look forward to your continued participation as an active member.\n\nThank you for your cooperation.\n\nRegards,\nMadikai Pravasi Association\nReg No: KSR/124/2026\nMadikai-Kasargod\nKerala-India`
+    );
+    return { href: `https://wa.me/${phone}?text=${message}`, kind: 'due' };
+  }
+
+  const message = encodeURIComponent(
+    `Dear ${member.full_name},\n\nGreetings from the Madikkai Pravasi Association!\n\nFirst, a heartfelt thank you to all members who have already cleared their membership dues. Your accounts are fully active and in good standing, ensuring your continued eligibility for all association benefits, and upcoming community programs.\n\nPlease Note: This is our official number. Kindly save this number and ensure that all future official communications and updates from the association are received and checked through this channel.\n\nWe truly appreciate your cooperation, continuous support, and active participation in our community.\n\nThank you!\n\nRegards,\nMadikkai Pravasi Association\nReg No: KSR/124/2026\nMadikai-Kasargod, Kerala-India`
+  );
+  return { href: `https://wa.me/${phone}?text=${message}`, kind: 'clear' };
+}
+
+function MemberWhatsAppButton({
+  whatsApp,
+  onClick,
+}: {
+  whatsApp: { href: string; kind: 'due' | 'clear' };
+  onClick?: (e: React.MouseEvent) => void;
+}) {
+  const isClear = whatsApp.kind === 'clear';
+  return (
+    <a
+      href={whatsApp.href}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={onClick}
+      className={cn(
+        'relative inline-flex h-8 w-8 items-center justify-center rounded-md border transition-colors',
+        isClear
+          ? 'border-success/50 bg-success/15 hover:bg-success/25'
+          : 'border-destructive/40 bg-destructive/5 hover:bg-destructive/10'
+      )}
+      title={
+        isClear
+          ? 'No dues — send thank you on WhatsApp'
+          : 'Has dues — send payment reminder on WhatsApp'
+      }
+      aria-label={
+        isClear
+          ? 'Send no-dues thank you on WhatsApp'
+          : 'Send due reminder on WhatsApp'
+      }
+    >
+      <WhatsAppIcon
+        className={cn('h-4 w-4', isClear ? 'text-success' : 'text-[#25D366]')}
+      />
+      {isClear ? (
+        <span className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-success text-white ring-2 ring-card">
+          <Check className="h-2.5 w-2.5" strokeWidth={3} />
+        </span>
+      ) : null}
+    </a>
+  );
 }
 
 const STATUS_OPTIONS = [
@@ -668,7 +723,7 @@ export default function MembersPage() {
               {members.map((member) => {
                 const isSelected = selectedIds.has(member.id);
                 const due = memberDueAmount(member);
-                const dueWhatsAppLink = generateMemberDueWhatsAppLink(member);
+                const whatsApp = generateMemberWhatsAppLink(member);
                 return (
                   <DataListCard
                     key={member.id}
@@ -712,17 +767,11 @@ export default function MembersPage() {
                         <StatusBadge tone={memberStatusTone(member.status)}>
                           {member.status}
                         </StatusBadge>
-                        {dueWhatsAppLink ? (
-                          <a
-                            href={dueWhatsAppLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                        {whatsApp ? (
+                          <MemberWhatsAppButton
+                            whatsApp={whatsApp}
                             onClick={(e) => e.stopPropagation()}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/80 bg-card hover:bg-muted"
-                            title="Send due reminder on WhatsApp"
-                          >
-                            <WhatsAppIcon className="h-4 w-4 text-[#25D366]" />
-                          </a>
+                          />
                         ) : null}
                       </div>
                     </div>
@@ -788,7 +837,7 @@ export default function MembersPage() {
               {members.map((member) => {
                 const isSelected = selectedIds.has(member.id);
                 const due = memberDueAmount(member);
-                const dueWhatsAppLink = generateMemberDueWhatsAppLink(member);
+                const whatsApp = generateMemberWhatsAppLink(member);
                 return (
                   <DataListRow
                     key={member.id}
@@ -846,17 +895,7 @@ export default function MembersPage() {
                       onClick={(e) => e.stopPropagation()}
                       onKeyDown={(e) => e.stopPropagation()}
                     >
-                      {dueWhatsAppLink ? (
-                        <a
-                          href={dueWhatsAppLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/80 bg-card hover:bg-muted"
-                          title="Send due reminder on WhatsApp"
-                        >
-                          <WhatsAppIcon className="h-4 w-4 text-[#25D366]" />
-                        </a>
-                      ) : null}
+                      {whatsApp ? <MemberWhatsAppButton whatsApp={whatsApp} /> : null}
                       {member.status === 'pending' ? (
                         <div className="flex gap-1">
                           <Button
@@ -880,7 +919,7 @@ export default function MembersPage() {
                             <AppIcon icon={X} className="h-3.5 w-3.5" />
                           </Button>
                         </div>
-                      ) : !dueWhatsAppLink ? (
+                      ) : !whatsApp ? (
                         <span className="text-xs text-muted-foreground">—</span>
                       ) : null}
                     </div>
