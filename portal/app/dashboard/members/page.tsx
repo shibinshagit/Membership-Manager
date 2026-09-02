@@ -76,8 +76,13 @@ interface Member {
   home_district?: string | null;
   created_at: string;
   due?: number | string;
+  pending_years?: string | null;
+  paid_up_to?: string | null;
   is_welfare_member?: boolean | null;
 }
+
+const ASSOCIATION_SIGNATURE =
+  'Regards,\nMadikai Pravasi Association\nReg. No: KSR/124/2026\nMadikai, Kasaragod\nKerala, India';
 
 function memberDueAmount(member: Member): number {
   return Number(member.due ?? 0);
@@ -88,6 +93,18 @@ function memberWhatsAppPhone(member: Member): string | null {
   return phone || null;
 }
 
+function formatPendingYears(member: Member): string {
+  const raw = member.pending_years?.trim();
+  return raw || '—';
+}
+
+function formatPaidUpTo(member: Member): string {
+  const raw = member.paid_up_to?.trim();
+  if (raw) return raw;
+  if (member.membership_plan === 'lifetime') return 'Lifetime';
+  return 'Up to date';
+}
+
 function generateMemberWhatsAppLink(
   member: Member
 ): { href: string; kind: 'due' | 'clear' } | null {
@@ -95,16 +112,17 @@ function generateMemberWhatsAppLink(
   if (!phone) return null;
 
   const due = memberDueAmount(member);
+  const memberId = member.member_id;
 
   if (due > 0) {
     const message = encodeURIComponent(
-      `Dear ${member.full_name},\n\nThis is a friendly reminder that your membership payment is still outstanding.\n\nAmount Due: ${due.toLocaleString()}\n\nKindly make the payment at your earliest convenience to keep your membership active and in good standing.\n\nPlease note that members with pending membership dues will not be eligible to receive any benefits, assistance, or welfare schemes offered by the organization until their membership is renewed and dues are cleared.\n\nPlease Note: This is our official number. Kindly save this number and ensure that all future official communications and updates from the association are received and checked through this channel.\n\nWe appreciate your prompt attention to this matter and look forward to your continued participation as an active member.\n\nThank you for your cooperation.\n\nRegards,\nMadikai Pravasi Association\nReg No: KSR/124/2026\nMadikai-Kasargod\nKerala-India`
+      `Dear ${member.full_name},\n\nGreetings from the Madikai Pravasi Association!\n\nThis is a friendly reminder that your membership payment is still outstanding.\n\nAmount Due: ${due.toLocaleString()}\nPending Years: ${formatPendingYears(member)}\nMember ID: ${memberId}\n\nKindly make the payment at your earliest convenience to keep your membership active and in good standing.\n\nPlease note that members with pending membership dues will not be eligible to receive any benefits, assistance, welfare schemes, or member-exclusive programs offered by the organization until their membership is renewed and all dues are cleared.\n\nImportant: This is our official association number. Kindly save this contact and ensure that all future official communications, announcements, and updates from the association are received and checked through this channel.\n\nPlease use your Member ID (${memberId}) for all future correspondence, payment references, membership-related inquiries, and event registrations.\n\nWe appreciate your prompt attention to this matter and look forward to your continued participation as an active member.\n\nThank you for your cooperation.\n\n${ASSOCIATION_SIGNATURE}`
     );
     return { href: `https://wa.me/${phone}?text=${message}`, kind: 'due' };
   }
 
   const message = encodeURIComponent(
-    `Dear ${member.full_name},\n\nGreetings from the Madikai Pravasi Association!\n\nFirst, a heartfelt thank you to all members who have already cleared their membership dues. Your accounts are fully active and in good standing, ensuring your continued eligibility for all association benefits, and upcoming community programs.\n\nPlease Note: This is our official number. Kindly save this number and ensure that all future official communications and updates from the association are received and checked through this channel.\n\nWe truly appreciate your cooperation, continuous support, and active participation in our community.\n\nThank you!\n\nRegards,\nMadikai Pravasi Association\nReg No: KSR/124/2026\nMadikai-Kasargod, Kerala-India`
+    `Dear ${member.full_name},\n\nGreetings from the Madikai Pravasi Association!\n\nFirst, a heartfelt thank you for clearing your membership dues. Your membership account is now fully active and in good standing, ensuring your continued eligibility for all association benefits, activities, and upcoming community programs.\n\nPlease Note: This is our official association number. Kindly save this contact and ensure that all future official communications, announcements, and updates from the association are received and checked through this channel.\n\nYour Member ID: ${memberId}\nPaid Up to: ${formatPaidUpTo(member)}\n\nPlease use this Member ID for all future correspondence, membership-related inquiries, event registrations, and official transactions with the association.\n\nWe truly appreciate your cooperation, continuous support, and active participation in our community. Together, we continue to strengthen the bond among Madikai natives across the globe.\n\nThank you for being a valued member of our association.\n\n${ASSOCIATION_SIGNATURE}`
   );
   return { href: `https://wa.me/${phone}?text=${message}`, kind: 'clear' };
 }

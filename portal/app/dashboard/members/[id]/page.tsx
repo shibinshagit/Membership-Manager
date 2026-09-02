@@ -605,6 +605,38 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
     return `https://wa.me/${phone}?text=${message}`;
   };
 
+  const getMembershipOutstanding = () => {
+    const unpaid = fees.filter(
+      (f) => !isWelfareFeeRow(f) && isUnpaidFee(f.payment_status)
+    );
+    const dueAmount = unpaid.reduce((sum, f) => sum + Number(f.amount ?? 0), 0);
+    const dueYears =
+      unpaid
+        .map((f) => f.fee_year)
+        .filter((y): y is string => !!y && /^\d{4}$/.test(y))
+        .sort()
+        .join(', ') || 'None';
+    return { dueAmount, dueYears };
+  };
+
+  const formatMembershipYear = (fee: Fee) => {
+    if (fee.fee_year === 'lifetime') return 'Lifetime';
+    const year = normalizeFeeYearLabel(fee.fee_year);
+    return year || '—';
+  };
+
+  const generatePaidFeeWhatsAppLink = (fee: Fee) => {
+    const phone = (member?.whatsapp_number || member?.phone || '').replace(/\D/g, '');
+    if (!phone) return '#';
+
+    const { dueAmount, dueYears } = getMembershipOutstanding();
+    const message = encodeURIComponent(
+      `Dear ${member?.full_name},\n\nThis is to confirm that we have received your Annual Membership Fee payment.\n\nAmount Received: AED ${Number(fee.amount).toLocaleString()}\nMembership Year(s): ${formatMembershipYear(fee)}\nOutstanding Amount as of Today: AED ${dueAmount.toLocaleString()}\nOutstanding Membership Year(s): ${dueYears}\n\nThank you for your payment and continued support. We greatly appreciate your cooperation.\n\nRegards,\nMadikai Pravasi Association`
+    );
+
+    return `https://wa.me/${phone}?text=${message}`;
+  };
+
   const paidFeesCount = fees.filter((fee) => !isWelfareFeeRow(fee) && fee.payment_status === 'paid').length;
   const unpaidFeesCount = fees.filter((fee) => !isWelfareFeeRow(fee) && isUnpaidFee(fee.payment_status)).length;
   const filteredFees = fees.filter((fee) => {
@@ -1782,6 +1814,18 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                           <Button variant="outline" size="sm" asChild>
                             <a
                               href={generateUnpaidInvoiceWhatsAppLink(fee)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <MessageSquare className="w-4 h-4 mr-2" />
+                              WhatsApp
+                            </a>
+                          </Button>
+                        )}
+                        {fee.payment_status === 'paid' && (
+                          <Button variant="outline" size="sm" asChild>
+                            <a
+                              href={generatePaidFeeWhatsAppLink(fee)}
                               target="_blank"
                               rel="noopener noreferrer"
                             >

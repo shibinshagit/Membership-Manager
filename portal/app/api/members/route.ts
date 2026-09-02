@@ -183,7 +183,21 @@ export async function GET(request: Request) {
                   FROM member_memberships mm
                   WHERE mm.member_id = m.id
                     AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
-                ), 0) AS due
+                ), 0) AS due,
+                (
+                  SELECT string_agg(mm.fee_year, ', ' ORDER BY mm.fee_year::int)
+                  FROM member_memberships mm
+                  WHERE mm.member_id = m.id
+                    AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                    AND mm.fee_year ~ '^[0-9]{4}$'
+                ) AS pending_years,
+                (
+                  SELECT MAX(mm.fee_year)
+                  FROM member_memberships mm
+                  WHERE mm.member_id = m.id
+                    AND mm.payment_status = 'paid'
+                    AND mm.fee_year ~ '^[0-9]{4}$'
+                ) AS paid_up_to
               FROM members m
               LEFT JOIN members ex ON m.assigned_executive_member_id = ex.id
               WHERE (${isAdmin} OR m.assigned_executive_id = ${user.id})
@@ -243,7 +257,21 @@ export async function GET(request: Request) {
                   FROM member_memberships mm
                   WHERE mm.member_id = m.id
                     AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
-                ), 0) AS due
+                ), 0) AS due,
+                (
+                  SELECT string_agg(mm.fee_year, ', ' ORDER BY mm.fee_year::int)
+                  FROM member_memberships mm
+                  WHERE mm.member_id = m.id
+                    AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                    AND mm.fee_year ~ '^[0-9]{4}$'
+                ) AS pending_years,
+                (
+                  SELECT MAX(mm.fee_year)
+                  FROM member_memberships mm
+                  WHERE mm.member_id = m.id
+                    AND mm.payment_status = 'paid'
+                    AND mm.fee_year ~ '^[0-9]{4}$'
+                ) AS paid_up_to
               FROM members m
               LEFT JOIN users u ON m.assigned_executive_id = u.id
               WHERE (${isAdmin} OR m.assigned_executive_id = ${user.id})
@@ -304,7 +332,21 @@ export async function GET(request: Request) {
                 FROM member_memberships mm
                 WHERE mm.member_id = m.id
                   AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
-              ), 0) AS due
+              ), 0) AS due,
+              (
+                SELECT string_agg(mm.fee_year, ', ' ORDER BY mm.fee_year::int)
+                FROM member_memberships mm
+                WHERE mm.member_id = m.id
+                  AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                  AND mm.fee_year ~ '^[0-9]{4}$'
+              ) AS pending_years,
+              (
+                SELECT MAX(mm.fee_year)
+                FROM member_memberships mm
+                WHERE mm.member_id = m.id
+                  AND mm.payment_status = 'paid'
+                  AND mm.fee_year ~ '^[0-9]{4}$'
+              ) AS paid_up_to
             FROM members m
             LEFT JOIN members ex ON m.assigned_executive_member_id = ex.id
             WHERE (${isAdmin} OR m.assigned_executive_id = ${user.id})
@@ -365,7 +407,21 @@ export async function GET(request: Request) {
                 FROM member_memberships mm
                 WHERE mm.member_id = m.id
                   AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
-              ), 0) AS due
+              ), 0) AS due,
+              (
+                SELECT string_agg(mm.fee_year, ', ' ORDER BY mm.fee_year::int)
+                FROM member_memberships mm
+                WHERE mm.member_id = m.id
+                  AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                  AND mm.fee_year ~ '^[0-9]{4}$'
+              ) AS pending_years,
+              (
+                SELECT MAX(mm.fee_year)
+                FROM member_memberships mm
+                WHERE mm.member_id = m.id
+                  AND mm.payment_status = 'paid'
+                  AND mm.fee_year ~ '^[0-9]{4}$'
+              ) AS paid_up_to
             FROM members m
             LEFT JOIN users u ON m.assigned_executive_id = u.id
             WHERE (${isAdmin} OR m.assigned_executive_id = ${user.id})
