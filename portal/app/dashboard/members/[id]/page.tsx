@@ -631,7 +631,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
 
     const { dueAmount, dueYears } = getMembershipOutstanding();
     const message = encodeURIComponent(
-      `Dear ${member?.full_name},\n\nThis is to confirm that we have received your Annual Membership Fee payment.\n\nAmount Received: AED ${Number(fee.amount).toLocaleString()}\nMembership Year(s): ${formatMembershipYear(fee)}\nOutstanding Amount as of Today: AED ${dueAmount.toLocaleString()}\nOutstanding Membership Year(s): ${dueYears}\n\nThank you for your payment and continued support. We greatly appreciate your cooperation.\n\nRegards,\nMadikai Pravasi Association`
+      `Dear ${member?.full_name},\n\nThis is to confirm that we have received your Annual Membership Fee payment.\n\nAmount Received: ${Number(fee.amount).toLocaleString()}\nMembership Year(s): ${formatMembershipYear(fee)}\nOutstanding Amount as of Today: ${dueAmount.toLocaleString()}\nOutstanding Membership Year(s): ${dueYears}\n\nThank you for your payment and continued support. We greatly appreciate your cooperation.\n\nRegards,\nMadikai Pravasi Association`
     );
 
     return `https://wa.me/${phone}?text=${message}`;
