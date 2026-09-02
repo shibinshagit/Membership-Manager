@@ -99,9 +99,9 @@ function formatPendingYears(member: Member): string {
 }
 
 function formatPaidUpTo(member: Member): string {
+  if (member.membership_plan === 'lifetime') return 'Lifetime Membership';
   const raw = member.paid_up_to?.trim();
   if (raw) return raw;
-  if (member.membership_plan === 'lifetime') return 'Lifetime';
   return 'Up to date';
 }
 
