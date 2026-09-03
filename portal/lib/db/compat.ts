@@ -6,6 +6,7 @@ let memberMembershipsTableEnsured = false;
 let committeeTablesEnsured = false;
 let visaDocumentTypeEnsured = false;
 let welfareColumnsEnsured = false;
+let whatsappGroupColumnEnsured = false;
 
 export async function hasAssignedExecutiveMemberColumn(): Promise<boolean> {
   if (hasAssignedExecutiveMemberColumnCache !== null) {
@@ -206,6 +207,21 @@ export async function ensureWelfareColumns(): Promise<void> {
   `;
 
   welfareColumnsEnsured = true;
+}
+
+export async function ensureWhatsAppGroupColumn(): Promise<void> {
+  if (whatsappGroupColumnEnsured) return;
+
+  await sql`
+    ALTER TABLE members
+    ADD COLUMN IF NOT EXISTS added_to_whatsapp_group BOOLEAN DEFAULT false
+  `;
+  await sql`
+    ALTER TABLE members
+    ADD COLUMN IF NOT EXISTS whatsapp_group_added_at TIMESTAMP WITH TIME ZONE
+  `;
+
+  whatsappGroupColumnEnsured = true;
 }
 
 let accountsTablesEnsured = false;

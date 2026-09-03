@@ -55,6 +55,7 @@ import {
 } from '@/components/ui/dialog';
 import { MembershipYearsPicker } from '@/components/members/membership-years-picker';
 import { WelfareBadge } from '@/components/members/welfare-badge';
+import { WhatsAppGroupBadge } from '@/components/members/whatsapp-group-badge';
 import { currentCalendarYear, ORG_START_YEAR } from '@/lib/fees-calendar';
 
 interface Member {
@@ -79,6 +80,7 @@ interface Member {
   pending_years?: string | null;
   paid_up_to?: string | null;
   is_welfare_member?: boolean | null;
+  added_to_whatsapp_group?: boolean | null;
 }
 
 const ASSOCIATION_SIGNATURE =
@@ -170,6 +172,42 @@ function MemberWhatsAppButton({
   );
 }
 
+function MemberWhatsAppGroupToggle({
+  added,
+  disabled,
+  onToggle,
+}: {
+  added: boolean;
+  disabled?: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggle();
+      }}
+      className={cn(
+        'relative inline-flex h-8 w-8 items-center justify-center rounded-md border transition-colors disabled:opacity-50',
+        added
+          ? 'border-success/50 bg-success/15 hover:bg-success/25'
+          : 'border-border bg-card hover:bg-muted'
+      )}
+      title={added ? 'In WhatsApp group — click to unmark' : 'Not in WhatsApp group — click to mark as added'}
+      aria-label={added ? 'Unmark from WhatsApp group' : 'Mark as added to WhatsApp group'}
+    >
+      <AppIcon icon={UsersRound} className={cn('h-4 w-4', added ? 'text-success' : 'text-muted-foreground')} />
+      {added ? (
+        <span className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-success text-white ring-2 ring-card">
+          <Check className="h-2.5 w-2.5" strokeWidth={3} />
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
 const STATUS_OPTIONS = [
   { value: 'active', label: 'Active' },
   { value: 'inactive', label: 'Inactive' },
@@ -195,8 +233,10 @@ export default function MembersPage() {
   const [joinYearFilter, setJoinYearFilter] = useState('all');
   const [noPaymentsOnly, setNoPaymentsOnly] = useState(false);
   const [welfareOnly, setWelfareOnly] = useState(false);
+  const [whatsappGroupFilter, setWhatsappGroupFilter] = useState('all');
   const [locality, setLocality] = useState('');
   const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const [waGroupLoadingId, setWaGroupLoadingId] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [registrationUrl, setRegistrationUrl] = useState('/register');
   const [reloadToken, setReloadToken] = useState(0);
@@ -329,6 +369,9 @@ export default function MembersPage() {
       if (joinYearFilter && joinYearFilter !== 'all') params.set('join_year', joinYearFilter);
       if (noPaymentsOnly) params.set('no_payments', '1');
       if (welfareOnly) params.set('welfare', '1');
+      if (whatsappGroupFilter === 'added' || whatsappGroupFilter === 'not_added') {
+        params.set('whatsapp_group', whatsappGroupFilter);
+      }
       if (locality) params.set('locality', locality);
       params.set('page', page.toString());
 
@@ -350,7 +393,7 @@ export default function MembersPage() {
     return () => {
       cancelled = true;
     };
-  }, [search, status, visaStatus, maritalStatus, gender, membershipPlanFilter, joinYearFilter, noPaymentsOnly, welfareOnly, locality, page, reloadToken]);
+  }, [search, status, visaStatus, maritalStatus, gender, membershipPlanFilter, joinYearFilter, noPaymentsOnly, welfareOnly, whatsappGroupFilter, locality, page, reloadToken]);
 
   const pageIds = useMemo(() => members.map((m) => m.id), [members]);
   const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
@@ -411,6 +454,72 @@ export default function MembersPage() {
     }
   };
 
+  const handleBulkWhatsAppGroup = async (added: boolean) => {
+    if (selectedIds.size === 0) return;
+    const count = selectedIds.size;
+    if (
+      !confirm(
+        added
+          ? `Mark ${count} selected member${count === 1 ? '' : 's'} as added to the WhatsApp group?`
+          : `Mark ${count} selected member${count === 1 ? '' : 's'} as not in the WhatsApp group?`
+      )
+    ) {
+      return;
+    }
+
+    setBulkLoading(true);
+    setBulkMessage(null);
+    try {
+      const res = await fetch('/api/members/bulk', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ids: Array.from(selectedIds),
+          added_to_whatsapp_group: added,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setBulkMessage(data.error || 'Bulk update failed.');
+        return;
+      }
+      setBulkMessage(data.message || 'Members updated.');
+      setSelectedIds(new Set());
+      setReloadToken((t) => t + 1);
+    } catch {
+      setBulkMessage('Network error. Please try again.');
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleToggleWhatsAppGroup = async (member: Member) => {
+    const next = !Boolean(member.added_to_whatsapp_group);
+    setWaGroupLoadingId(member.id);
+    setBulkMessage(null);
+    try {
+      const res = await fetch(`/api/members/${member.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ added_to_whatsapp_group: next }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setBulkMessage(data.error || 'Failed to update WhatsApp group mark.');
+        return;
+      }
+      setMembers((prev) =>
+        prev.map((m) =>
+          m.id === member.id ? { ...m, added_to_whatsapp_group: next } : m
+        )
+      );
+    } catch {
+      setBulkMessage('Network error. Please try again.');
+    } finally {
+      setWaGroupLoadingId(null);
+    }
+  };
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
@@ -429,6 +538,9 @@ export default function MembersPage() {
     if (joinYearFilter && joinYearFilter !== 'all') params.set('join_year', joinYearFilter);
     if (noPaymentsOnly) params.set('no_payments', '1');
     if (welfareOnly) params.set('welfare', '1');
+    if (whatsappGroupFilter === 'added' || whatsappGroupFilter === 'not_added') {
+      params.set('whatsapp_group', whatsappGroupFilter);
+    }
     if (locality) params.set('locality', locality);
     params.set('export', 'csv');
     window.location.href = `/api/members?${params.toString()}`;
@@ -626,6 +738,22 @@ export default function MembersPage() {
                 Welfare members
               </Label>
             </div>
+            <Select
+              value={whatsappGroupFilter}
+              onValueChange={(v) => {
+                setWhatsappGroupFilter(v);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="WhatsApp group" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All WA group</SelectItem>
+                <SelectItem value="not_added">Not in WA group</SelectItem>
+                <SelectItem value="added">In WA group</SelectItem>
+              </SelectContent>
+            </Select>
             <div className="flex flex-wrap gap-2 sm:ml-auto">
               <Button type="submit" variant="secondary">
                 <AppIcon icon={Search} className="h-4 w-4" />
@@ -652,7 +780,7 @@ export default function MembersPage() {
               Clear
             </button>
           </p>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:flex-wrap">
             <Select value={bulkStatus} onValueChange={setBulkStatus}>
               <SelectTrigger className="w-full sm:w-44">
                 <SelectValue placeholder="New status" />
@@ -667,6 +795,20 @@ export default function MembersPage() {
             </Select>
             <Button onClick={handleBulkUpdate} disabled={bulkLoading}>
               {bulkLoading ? 'Updating…' : 'Update Status'}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => handleBulkWhatsAppGroup(true)}
+              disabled={bulkLoading}
+            >
+              Mark in WA group
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => handleBulkWhatsAppGroup(false)}
+              disabled={bulkLoading}
+            >
+              Unmark WA group
             </Button>
           </div>
         </div>
@@ -767,6 +909,7 @@ export default function MembersPage() {
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="truncate font-medium">{member.full_name}</p>
                           {member.is_welfare_member ? <WelfareBadge /> : null}
+                          {member.added_to_whatsapp_group ? <WhatsAppGroupBadge /> : null}
                         </div>
                         <p className="truncate text-xs text-muted-foreground">
                           {member.member_id}
@@ -785,12 +928,19 @@ export default function MembersPage() {
                         <StatusBadge tone={memberStatusTone(member.status)}>
                           {member.status}
                         </StatusBadge>
-                        {whatsApp ? (
-                          <MemberWhatsAppButton
-                            whatsApp={whatsApp}
-                            onClick={(e) => e.stopPropagation()}
+                        <div className="flex items-center gap-1">
+                          <MemberWhatsAppGroupToggle
+                            added={Boolean(member.added_to_whatsapp_group)}
+                            disabled={waGroupLoadingId === member.id}
+                            onToggle={() => handleToggleWhatsAppGroup(member)}
                           />
-                        ) : null}
+                          {whatsApp ? (
+                            <MemberWhatsAppButton
+                              whatsApp={whatsApp}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          ) : null}
+                        </div>
                       </div>
                     </div>
                     {member.status === 'pending' ? (
@@ -885,6 +1035,7 @@ export default function MembersPage() {
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="truncate font-medium">{member.full_name}</p>
                           {member.is_welfare_member ? <WelfareBadge /> : null}
+                          {member.added_to_whatsapp_group ? <WhatsAppGroupBadge /> : null}
                         </div>
                         {member.email ? (
                           <p className="truncate text-sm text-muted-foreground">{member.email}</p>
@@ -913,6 +1064,11 @@ export default function MembersPage() {
                       onClick={(e) => e.stopPropagation()}
                       onKeyDown={(e) => e.stopPropagation()}
                     >
+                      <MemberWhatsAppGroupToggle
+                        added={Boolean(member.added_to_whatsapp_group)}
+                        disabled={waGroupLoadingId === member.id}
+                        onToggle={() => handleToggleWhatsAppGroup(member)}
+                      />
                       {whatsApp ? <MemberWhatsAppButton whatsApp={whatsApp} /> : null}
                       {member.status === 'pending' ? (
                         <div className="flex gap-1">

@@ -58,6 +58,8 @@ CREATE TABLE IF NOT EXISTS members (
   is_welfare_member BOOLEAN DEFAULT false,
   welfare_payment_mode VARCHAR(20),
   welfare_joined_date DATE,
+  added_to_whatsapp_group BOOLEAN DEFAULT false,
+  whatsapp_group_added_at TIMESTAMP WITH TIME ZONE,
   membership_start_date DATE NOT NULL,
   membership_end_date DATE,
   status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('active', 'inactive', 'pending', 'suspended', 'expired')),
@@ -205,6 +207,8 @@ ALTER TABLE members ADD COLUMN IF NOT EXISTS ward_no INTEGER;
 ALTER TABLE members ADD COLUMN IF NOT EXISTS joined_date DATE DEFAULT CURRENT_DATE;
 ALTER TABLE members ADD COLUMN IF NOT EXISTS membership_plan VARCHAR(20) DEFAULT 'annual';
 ALTER TABLE members ADD COLUMN IF NOT EXISTS membership_payment_status VARCHAR(20) DEFAULT 'unpaid';
+ALTER TABLE members ADD COLUMN IF NOT EXISTS added_to_whatsapp_group BOOLEAN DEFAULT false;
+ALTER TABLE members ADD COLUMN IF NOT EXISTS whatsapp_group_added_at TIMESTAMP WITH TIME ZONE;
 ALTER TABLE members ADD COLUMN IF NOT EXISTS assigned_executive_member_id INTEGER REFERENCES members(id) ON DELETE SET NULL;
 ALTER TABLE member_memberships ADD COLUMN IF NOT EXISTS fee_type VARCHAR(50);
 ALTER TABLE member_memberships ADD COLUMN IF NOT EXISTS currency VARCHAR(10) DEFAULT 'AED';

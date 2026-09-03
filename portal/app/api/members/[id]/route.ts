@@ -21,6 +21,7 @@ import {
   ensureExtendedMemberProfileColumns,
   ensureMemberMembershipsTable,
   ensureWelfareColumns,
+  ensureWhatsAppGroupColumn,
   hasAssignedExecutiveMemberColumn,
 } from '@/lib/db/compat';
 import { getWelfareSummaryForMember } from '@/lib/welfare-service';
@@ -102,6 +103,7 @@ export async function GET(
   try {
     await ensureMemberMembershipsTable();
     await ensureWelfareColumns();
+    await ensureWhatsAppGroupColumn();
     const hasExecutiveMemberColumn = await ensureAssignedExecutiveMemberColumn();
     const isAdmin = canManageAllMembers(user.role);
 
@@ -235,6 +237,7 @@ export async function PUT(
   try {
     await ensureExtendedMemberProfileColumns();
     await ensureMemberMembershipsTable();
+    await ensureWhatsAppGroupColumn();
     const hasExecutiveMemberColumn = await hasAssignedExecutiveMemberColumn();
     const body = await request.json();
     const {
@@ -268,6 +271,7 @@ export async function PUT(
       children_count,
       children_details,
       family_residing_with,
+      added_to_whatsapp_group,
       membership_type,
       membership_plan,
       membership_payment_status,
@@ -386,6 +390,23 @@ export async function PUT(
         ? currentMember[0].ward_no
         : parseWardNo(ward_no_input);
 
+    const hasWhatsAppGroupFlag =
+      typeof added_to_whatsapp_group === 'boolean' ||
+      added_to_whatsapp_group === 0 ||
+      added_to_whatsapp_group === 1 ||
+      added_to_whatsapp_group === 'true' ||
+      added_to_whatsapp_group === 'false';
+    const resolvedWhatsAppGroup = hasWhatsAppGroupFlag
+      ? added_to_whatsapp_group === true ||
+        added_to_whatsapp_group === 1 ||
+        added_to_whatsapp_group === 'true'
+      : Boolean(currentMember[0].added_to_whatsapp_group);
+    const resolvedWhatsAppGroupAt = !resolvedWhatsAppGroup
+      ? null
+      : hasWhatsAppGroupFlag
+        ? currentMember[0].whatsapp_group_added_at || new Date().toISOString()
+        : currentMember[0].whatsapp_group_added_at;
+
     const result = hasExecutiveMemberColumn
       ? await sql`
           UPDATE members SET
@@ -420,6 +441,8 @@ export async function PUT(
             children_count = ${normalizedChildrenCount},
             children_details = ${children_details ?? currentMember[0].children_details},
             family_residing_with = ${family_residing_with ?? currentMember[0].family_residing_with},
+            added_to_whatsapp_group = ${resolvedWhatsAppGroup},
+            whatsapp_group_added_at = ${resolvedWhatsAppGroupAt},
             membership_type = ${membership_type ?? currentMember[0].membership_type},
             membership_plan = ${resolvedPlan},
             membership_payment_status = ${resolvedPaymentStatus},
@@ -465,6 +488,8 @@ export async function PUT(
             children_count = ${normalizedChildrenCount},
             children_details = ${children_details ?? currentMember[0].children_details},
             family_residing_with = ${family_residing_with ?? currentMember[0].family_residing_with},
+            added_to_whatsapp_group = ${resolvedWhatsAppGroup},
+            whatsapp_group_added_at = ${resolvedWhatsAppGroupAt},
             membership_type = ${membership_type ?? currentMember[0].membership_type},
             membership_plan = ${resolvedPlan},
             membership_payment_status = ${resolvedPaymentStatus},

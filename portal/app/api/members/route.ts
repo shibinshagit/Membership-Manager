@@ -17,6 +17,7 @@ import {
   ensureExtendedMemberProfileColumns,
   ensureMemberMembershipsTable,
   ensureWelfareColumns,
+  ensureWhatsAppGroupColumn,
   hasAssignedExecutiveMemberColumn,
 } from '@/lib/db/compat';
 
@@ -63,9 +64,15 @@ export async function GET(request: Request) {
       searchParams.get('welfare') === '1' ||
       searchParams.get('welfare') === 'true' ||
       searchParams.get('welfare') === 'yes';
+    const whatsappGroupParam = searchParams.get('whatsapp_group');
+    const whatsappGroupFilter =
+      whatsappGroupParam === 'added' || whatsappGroupParam === 'not_added'
+        ? whatsappGroupParam
+        : null;
     const executiveIdInt = executiveId ? Number.parseInt(executiveId, 10) : null;
 
     await ensureWelfareColumns();
+    await ensureWhatsAppGroupColumn();
 
     // Get total count
     const countResult = hasExecutiveMemberColumn
@@ -99,6 +106,17 @@ export async function GET(request: Request) {
             AND (
               ${welfareOnly}::boolean IS NOT TRUE
               OR COALESCE(m.is_welfare_member, false) = true
+            )
+            AND (
+              ${whatsappGroupFilter}::text IS NULL
+              OR (
+                ${whatsappGroupFilter} = 'added'
+                AND COALESCE(m.added_to_whatsapp_group, false) = true
+              )
+              OR (
+                ${whatsappGroupFilter} = 'not_added'
+                AND COALESCE(m.added_to_whatsapp_group, false) = false
+              )
             )
             AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_member_id = ${executiveIdInt})
             AND (
@@ -149,6 +167,17 @@ export async function GET(request: Request) {
             AND (
               ${welfareOnly}::boolean IS NOT TRUE
               OR COALESCE(m.is_welfare_member, false) = true
+            )
+            AND (
+              ${whatsappGroupFilter}::text IS NULL
+              OR (
+                ${whatsappGroupFilter} = 'added'
+                AND COALESCE(m.added_to_whatsapp_group, false) = true
+              )
+              OR (
+                ${whatsappGroupFilter} = 'not_added'
+                AND COALESCE(m.added_to_whatsapp_group, false) = false
+              )
             )
             AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_id = ${executiveIdInt})
             AND (
@@ -228,6 +257,17 @@ export async function GET(request: Request) {
                   ${welfareOnly}::boolean IS NOT TRUE
                   OR COALESCE(m.is_welfare_member, false) = true
                 )
+                AND (
+                  ${whatsappGroupFilter}::text IS NULL
+                  OR (
+                    ${whatsappGroupFilter} = 'added'
+                    AND COALESCE(m.added_to_whatsapp_group, false) = true
+                  )
+                  OR (
+                    ${whatsappGroupFilter} = 'not_added'
+                    AND COALESCE(m.added_to_whatsapp_group, false) = false
+                  )
+                )
                 AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_member_id = ${executiveIdInt})
                 AND (
                   ${searchPattern}::text IS NULL OR
@@ -301,6 +341,17 @@ export async function GET(request: Request) {
                 AND (
                   ${welfareOnly}::boolean IS NOT TRUE
                   OR COALESCE(m.is_welfare_member, false) = true
+                )
+                AND (
+                  ${whatsappGroupFilter}::text IS NULL
+                  OR (
+                    ${whatsappGroupFilter} = 'added'
+                    AND COALESCE(m.added_to_whatsapp_group, false) = true
+                  )
+                  OR (
+                    ${whatsappGroupFilter} = 'not_added'
+                    AND COALESCE(m.added_to_whatsapp_group, false) = false
+                  )
                 )
                 AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_id = ${executiveIdInt})
                 AND (
@@ -377,6 +428,17 @@ export async function GET(request: Request) {
                 ${welfareOnly}::boolean IS NOT TRUE
                 OR COALESCE(m.is_welfare_member, false) = true
               )
+              AND (
+                ${whatsappGroupFilter}::text IS NULL
+                OR (
+                  ${whatsappGroupFilter} = 'added'
+                  AND COALESCE(m.added_to_whatsapp_group, false) = true
+                )
+                OR (
+                  ${whatsappGroupFilter} = 'not_added'
+                  AND COALESCE(m.added_to_whatsapp_group, false) = false
+                )
+              )
               AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_member_id = ${executiveIdInt})
               AND (
                 ${searchPattern}::text IS NULL OR
@@ -452,6 +514,17 @@ export async function GET(request: Request) {
                 ${welfareOnly}::boolean IS NOT TRUE
                 OR COALESCE(m.is_welfare_member, false) = true
               )
+              AND (
+                ${whatsappGroupFilter}::text IS NULL
+                OR (
+                  ${whatsappGroupFilter} = 'added'
+                  AND COALESCE(m.added_to_whatsapp_group, false) = true
+                )
+                OR (
+                  ${whatsappGroupFilter} = 'not_added'
+                  AND COALESCE(m.added_to_whatsapp_group, false) = false
+                )
+              )
               AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_id = ${executiveIdInt})
               AND (
                 ${searchPattern}::text IS NULL OR
@@ -492,6 +565,7 @@ export async function GET(request: Request) {
         'Local Area/Ward',
         'Executive',
         'Due',
+        'In WhatsApp Group',
       ];
       const escapeCsv = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
       const rows = members.map((member) =>
@@ -512,6 +586,7 @@ export async function GET(request: Request) {
           member.home_local_area_ward,
           member.executive_name,
           Number(member.due ?? 0),
+          member.added_to_whatsapp_group ? 'Yes' : 'No',
         ]
           .map(escapeCsv)
           .join(',')

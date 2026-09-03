@@ -70,6 +70,8 @@ import {
 import { MembershipYearsPicker } from '@/components/members/membership-years-picker';
 import { WelfareMembershipCard } from '@/components/members/welfare-membership-card';
 import { WelfareBadge } from '@/components/members/welfare-badge';
+import { WhatsAppGroupBadge } from '@/components/members/whatsapp-group-badge';
+import { Switch } from '@/components/ui/switch';
 import type { WelfareSummary } from '@/lib/welfare-policy';
 import { isWelfareFeeRow } from '@/lib/welfare-policy';
 import {
@@ -123,6 +125,8 @@ interface Member {
   membership_end_date: string | null;
   status: string;
   is_welfare_member?: boolean | null;
+  added_to_whatsapp_group?: boolean | null;
+  whatsapp_group_added_at?: string | null;
   assigned_executive_id: number | null;
   notes: string | null;
   created_at: string;
@@ -183,6 +187,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
   const [lifetimeDialogOpen, setLifetimeDialogOpen] = useState(false);
   const [welfare, setWelfare] = useState<WelfareSummary | null>(null);
   const [statusSaving, setStatusSaving] = useState(false);
+  const [waGroupSaving, setWaGroupSaving] = useState(false);
   const identityCardRef = useRef<HTMLDivElement>(null);
 
   const handleDocumentUpload = async () => {
@@ -421,6 +426,41 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
       setError('Failed to update status');
     } finally {
       setStatusSaving(false);
+    }
+  };
+
+  const handleWhatsAppGroupToggle = async (checked: boolean) => {
+    if (!member || Boolean(member.added_to_whatsapp_group) === checked) return;
+    setWaGroupSaving(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/members/${resolvedParams.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ added_to_whatsapp_group: checked }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Failed to update WhatsApp group mark');
+        return;
+      }
+      setMember((prev) =>
+        prev
+          ? {
+              ...prev,
+              added_to_whatsapp_group: checked,
+              whatsapp_group_added_at: checked
+                ? prev.whatsapp_group_added_at || new Date().toISOString()
+                : null,
+            }
+          : prev
+      );
+      setFormData((prev) => ({ ...prev, added_to_whatsapp_group: checked }));
+      await fetchMember();
+    } catch {
+      setError('Failed to update WhatsApp group mark');
+    } finally {
+      setWaGroupSaving(false);
     }
   };
 
@@ -723,6 +763,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <h1 className="text-xl sm:text-2xl font-semibold text-foreground break-words">{member.full_name}</h1>
               {member.is_welfare_member || welfare?.is_welfare_member ? <WelfareBadge /> : null}
+              {member.added_to_whatsapp_group ? <WhatsAppGroupBadge /> : null}
               <span className={cn('text-xs px-2 py-1 rounded-full capitalize', getStatusColor(member.status))}>
                 {member.status}
               </span>
@@ -1059,6 +1100,24 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                       </Button>
                     </div>
                   )}
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <div className="flex h-10 items-center justify-between gap-3 rounded-lg border border-input bg-card px-3">
+                    <div className="min-w-0">
+                      <Label htmlFor="wa-group-toggle" className="cursor-pointer">
+                        Added to WhatsApp group
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Mark once you have added this member to the association group
+                      </p>
+                    </div>
+                    <Switch
+                      id="wa-group-toggle"
+                      checked={Boolean(member.added_to_whatsapp_group)}
+                      disabled={waGroupSaving}
+                      onCheckedChange={(checked) => handleWhatsAppGroupToggle(checked === true)}
+                    />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label>Email</Label>
