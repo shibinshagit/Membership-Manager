@@ -277,12 +277,11 @@ export async function syncMemberFeeYears(options: {
 }
 
 /**
- * Active if lifetime paid OR current calendar year annual fee is paid.
- * Inactive if annual member has unpaid current-year fee (or no current-year fee).
+ * Active if lifetime is paid, or annual arrears are at most one year (~AED 50).
+ * Inactive if lifetime is unpaid, or two or more unpaid annual years remain.
+ * Members with no fee rows are left unchanged (e.g. pending applications).
  */
 export async function reconcileMemberStatusesByPayment(): Promise<void> {
-  const year = String(currentCalendarYear());
-
   await sql`
     WITH paid_lifetime AS (
       SELECT DISTINCT member_id
@@ -290,12 +289,13 @@ export async function reconcileMemberStatusesByPayment(): Promise<void> {
       WHERE payment_status = 'paid'
         AND fee_type = ${FEE_TYPE_LIFETIME}
     ),
-    current_year_paid AS (
-      SELECT DISTINCT member_id
+    unpaid_annual AS (
+      SELECT member_id, COUNT(*)::int AS unpaid_years
       FROM member_memberships
-      WHERE payment_status = 'paid'
+      WHERE COALESCE(payment_status, 'unpaid') <> 'paid'
         AND fee_type = ${FEE_TYPE_ANNUAL}
-        AND fee_year = ${year}
+        AND fee_year ~ '^[0-9]{4}$'
+      GROUP BY member_id
     ),
     has_fees AS (
       SELECT DISTINCT member_id FROM member_memberships
@@ -306,13 +306,13 @@ export async function reconcileMemberStatusesByPayment(): Promise<void> {
         CASE
           WHEN pl.member_id IS NOT NULL THEN 'active'
           WHEN m.membership_plan = 'lifetime' AND pl.member_id IS NULL THEN 'inactive'
-          WHEN cyp.member_id IS NOT NULL THEN 'active'
-          WHEN hf.member_id IS NOT NULL THEN 'inactive'
-          ELSE NULL
+          WHEN hf.member_id IS NULL THEN NULL
+          WHEN COALESCE(ua.unpaid_years, 0) <= 1 THEN 'active'
+          ELSE 'inactive'
         END AS next_status
       FROM members m
       LEFT JOIN paid_lifetime pl ON pl.member_id = m.id
-      LEFT JOIN current_year_paid cyp ON cyp.member_id = m.id
+      LEFT JOIN unpaid_annual ua ON ua.member_id = m.id
       LEFT JOIN has_fees hf ON hf.member_id = m.id
       WHERE m.status IN ('active', 'inactive', 'pending')
     )
