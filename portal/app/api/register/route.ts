@@ -10,6 +10,7 @@ import {
   ensureExtendedMemberProfileColumns,
   hasAssignedExecutiveMemberColumn,
 } from '@/lib/db/compat';
+import { canonicalizeMemberPhones } from '@/lib/members/phone-canonical';
 
 export const runtime = 'nodejs';
 /** Allow slow mobile uploads + blob storage (Vercel). */
@@ -97,7 +98,20 @@ export async function POST(request: Request) {
     }
 
     const trimmedEmail = email;
-    const duplicateCheck = await checkMemberDuplicates(trimmedEmail, phone, whatsapp_number);
+    const phones = canonicalizeMemberPhones({
+      phone,
+      whatsapp_number,
+      home_country_contact_number: getString(formData.get('home_country_contact_number')) || null,
+    });
+    const canonicalPhone = phones.phone || phone;
+    const canonicalWhatsapp = phones.whatsapp_number || whatsapp_number;
+    const canonicalHomeContact = phones.home_country_contact_number;
+
+    const duplicateCheck = await checkMemberDuplicates(
+      trimmedEmail,
+      canonicalPhone,
+      canonicalWhatsapp
+    );
     if (duplicateCheck.duplicate) {
       return NextResponse.json(
         {
@@ -139,7 +153,7 @@ export async function POST(request: Request) {
     const home_district = getString(formData.get('home_district')) || null;
     const home_local_body = getString(formData.get('home_local_body')) || null;
     const home_local_area_ward = getString(formData.get('home_local_area_ward')) || null;
-    const home_country_contact_number = getString(formData.get('home_country_contact_number')) || null;
+    const home_country_contact_number = canonicalHomeContact;
     const spouse_name = getString(formData.get('spouse_name')) || null;
     const children_details = getString(formData.get('children_details')) || null;
     const children_count_raw = formData.get('children_count');
@@ -163,8 +177,8 @@ export async function POST(request: Request) {
             joined_date, membership_type, membership_plan, membership_payment_status,
             membership_start_date, membership_end_date, status, assigned_executive_member_id, notes
           ) VALUES (
-            ${memberId}, ${full_name}, ${trimmedEmail}, ${phone},
-            ${whatsapp_number}, ${date_of_birth || null},
+            ${memberId}, ${full_name}, ${trimmedEmail}, ${canonicalPhone},
+            ${canonicalWhatsapp}, ${date_of_birth || null},
             ${nominee}, ${ward_no}, ${emirates_id}, ${passport_number}, ${visa_status},
             ${profession || null}, ${company_name || null}, ${work_location || null},
             ${address || null}, ${uae_building || null}, ${uae_area || null}, ${uae_city || null},
@@ -188,8 +202,8 @@ export async function POST(request: Request) {
             joined_date, membership_type, membership_plan, membership_payment_status,
             membership_start_date, membership_end_date, status, assigned_executive_id, notes
           ) VALUES (
-            ${memberId}, ${full_name}, ${trimmedEmail}, ${phone},
-            ${whatsapp_number}, ${date_of_birth || null},
+            ${memberId}, ${full_name}, ${trimmedEmail}, ${canonicalPhone},
+            ${canonicalWhatsapp}, ${date_of_birth || null},
             ${nominee}, ${ward_no}, ${emirates_id}, ${passport_number}, ${visa_status},
             ${profession || null}, ${company_name || null}, ${work_location || null},
             ${address || null}, ${uae_building || null}, ${uae_area || null}, ${uae_city || null},

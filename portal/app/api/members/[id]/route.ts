@@ -25,6 +25,7 @@ import {
   hasAssignedExecutiveMemberColumn,
 } from '@/lib/db/compat';
 import { getWelfareSummaryForMember } from '@/lib/welfare-service';
+import { canonicalizeMemberPhones } from '@/lib/members/phone-canonical';
 
 function currentFeeYear(): string {
   return String(currentCalendarYear());
@@ -385,6 +386,27 @@ export async function PUT(
       resolvedPlan === 'lifetime'
         ? null
         : membership_end_date || `${currentCalendarYear()}-12-31`;
+    const phones = canonicalizeMemberPhones({
+      phone: phone || currentMember[0].phone,
+      whatsapp_number:
+        whatsapp_number !== undefined
+          ? whatsapp_number
+          : currentMember[0].whatsapp_number,
+      home_country_contact_number:
+        home_country_contact_number !== undefined
+          ? home_country_contact_number
+          : currentMember[0].home_country_contact_number,
+    });
+    const resolvedPhone = phones.phone || currentMember[0].phone;
+    const resolvedWhatsapp =
+      phones.whatsapp_number ??
+      (whatsapp_number === null ? null : currentMember[0].whatsapp_number);
+    const resolvedHomeContact =
+      phones.home_country_contact_number ??
+      (home_country_contact_number === null
+        ? null
+        : currentMember[0].home_country_contact_number);
+
     const ward_no =
       ward_no_input === undefined || ward_no_input === null || ward_no_input === ''
         ? currentMember[0].ward_no
@@ -413,8 +435,8 @@ export async function PUT(
             member_id = ${resolvedMemberCode},
             full_name = ${full_name || currentMember[0].full_name},
             email = ${email ?? currentMember[0].email},
-            phone = ${phone || currentMember[0].phone},
-            whatsapp_number = ${whatsapp_number ?? currentMember[0].whatsapp_number},
+            phone = ${resolvedPhone},
+            whatsapp_number = ${resolvedWhatsapp},
             date_of_birth = ${date_of_birth ?? currentMember[0].date_of_birth},
             nominee = ${nominee ?? currentMember[0].nominee},
             ward_no = ${ward_no},
@@ -436,7 +458,7 @@ export async function PUT(
             home_district = ${home_district ?? currentMember[0].home_district},
             home_local_body = ${home_local_body ?? currentMember[0].home_local_body},
             home_local_area_ward = ${home_local_area_ward ?? currentMember[0].home_local_area_ward},
-            home_country_contact_number = ${home_country_contact_number ?? currentMember[0].home_country_contact_number},
+            home_country_contact_number = ${resolvedHomeContact},
             spouse_name = ${spouse_name ?? currentMember[0].spouse_name},
             children_count = ${normalizedChildrenCount},
             children_details = ${children_details ?? currentMember[0].children_details},
@@ -460,8 +482,8 @@ export async function PUT(
             member_id = ${resolvedMemberCode},
             full_name = ${full_name || currentMember[0].full_name},
             email = ${email ?? currentMember[0].email},
-            phone = ${phone || currentMember[0].phone},
-            whatsapp_number = ${whatsapp_number ?? currentMember[0].whatsapp_number},
+            phone = ${resolvedPhone},
+            whatsapp_number = ${resolvedWhatsapp},
             date_of_birth = ${date_of_birth ?? currentMember[0].date_of_birth},
             nominee = ${nominee ?? currentMember[0].nominee},
             ward_no = ${ward_no},
@@ -483,7 +505,7 @@ export async function PUT(
             home_district = ${home_district ?? currentMember[0].home_district},
             home_local_body = ${home_local_body ?? currentMember[0].home_local_body},
             home_local_area_ward = ${home_local_area_ward ?? currentMember[0].home_local_area_ward},
-            home_country_contact_number = ${home_country_contact_number ?? currentMember[0].home_country_contact_number},
+            home_country_contact_number = ${resolvedHomeContact},
             spouse_name = ${spouse_name ?? currentMember[0].spouse_name},
             children_count = ${normalizedChildrenCount},
             children_details = ${children_details ?? currentMember[0].children_details},

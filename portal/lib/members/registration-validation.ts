@@ -1,5 +1,9 @@
 import { validateDocumentFile, validatePhotoFile } from '@/lib/documents/validate-document-file';
 import { validateWardNo } from '@/lib/members/ward-numbers';
+import {
+  isValidNormalizedPhone,
+  type PhoneDefaultCountry,
+} from '@/lib/members/normalize-phone';
 
 export type RegistrationFieldErrors = Record<string, string>;
 
@@ -18,15 +22,19 @@ function requirePhoneLike(
   errors: RegistrationFieldErrors,
   key: string,
   value: string | null | undefined,
-  label: string
+  label: string,
+  defaultCountry: PhoneDefaultCountry = 'AE'
 ) {
   const trimmed = value?.trim() || '';
   if (!trimmed) {
     errors[key] = `${label} is required.`;
     return;
   }
-  if (trimmed.replace(/\D/g, '').length < 7) {
-    errors[key] = `Please enter a valid ${label.toLowerCase()}.`;
+  if (!isValidNormalizedPhone(trimmed, defaultCountry)) {
+    errors[key] =
+      defaultCountry === 'IN'
+        ? `Please enter a valid Indian ${label.toLowerCase()} (e.g. 98765 43210 or +91…).`
+        : `Please enter a valid UAE ${label.toLowerCase()} (e.g. 050 123 4567 or +971…).`;
   }
 }
 
@@ -89,8 +97,8 @@ export function validateRegistrationFields(input: {
   requireText(errors, 'marital_status', input.marital_status, 'Marital status');
   requireText(errors, 'nominee', input.nominee, 'Nominee');
 
-  requirePhoneLike(errors, 'phone', input.phone, 'Phone number');
-  requirePhoneLike(errors, 'whatsapp_number', input.whatsapp_number, 'WhatsApp number');
+  requirePhoneLike(errors, 'phone', input.phone, 'Phone number', 'AE');
+  requirePhoneLike(errors, 'whatsapp_number', input.whatsapp_number, 'WhatsApp number', 'AE');
 
   const email = input.email?.trim() || '';
   if (!email) {
@@ -116,7 +124,8 @@ export function validateRegistrationFields(input: {
     errors,
     'home_country_contact_number',
     input.home_country_contact_number,
-    'Home country contact number'
+    'Home country contact number',
+    'IN'
   );
 
   const familyResiding = input.family_residing_with?.trim();

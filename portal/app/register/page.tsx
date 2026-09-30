@@ -40,6 +40,7 @@ import {
   validateRegistrationFields,
   REGISTRATION_FIELD_SECTIONS,
 } from '@/lib/members/registration-validation';
+import { normalizePhoneInputValue } from '@/lib/members/normalize-phone';
 import {
   AlertCircle,
   Loader2,
@@ -616,6 +617,9 @@ export default function RegisterPage() {
                         placeholder="+971 50 123 4567"
                         className={cn(inputClass, err('phone') && 'border-destructive')}
                         aria-invalid={!!err('phone')}
+                        onBlur={(e) => {
+                          e.target.value = normalizePhoneInputValue(e.target.value, 'AE');
+                        }}
                       />
                     </Field>
                     <Field
@@ -633,6 +637,9 @@ export default function RegisterPage() {
                         placeholder="+971 50 123 4567"
                         className={cn(inputClass, err('whatsapp_number') && 'border-destructive')}
                         aria-invalid={!!err('whatsapp_number')}
+                        onBlur={(e) => {
+                          e.target.value = normalizePhoneInputValue(e.target.value, 'AE');
+                        }}
                       />
                     </Field>
                   </div>
@@ -952,8 +959,12 @@ export default function RegisterPage() {
                       name="home_country_contact_number"
                       type="tel"
                       inputMode="tel"
+                      placeholder="+91 98765 43210"
                       className={cn(inputClass, err('home_country_contact_number') && 'border-destructive')}
                       aria-invalid={!!err('home_country_contact_number')}
+                      onBlur={(e) => {
+                        e.target.value = normalizePhoneInputValue(e.target.value, 'IN');
+                      }}
                     />
                   </Field>
                   <Field label="Family Residing with You" fieldKey="family_residing_with" required error={err('family_residing_with')}>

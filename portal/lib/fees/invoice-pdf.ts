@@ -114,8 +114,12 @@ async function embedLogo(pdf: PDFDocument, bytes: Uint8Array) {
 export async function buildMembershipInvoicePdf(options: {
   fee: InvoiceFeeRow;
   member: InvoiceMemberRow;
+  documentType?: 'invoice' | 'receipt';
 }): Promise<Uint8Array> {
   const { fee, member } = options;
+  const isReceipt =
+    options.documentType === 'receipt' ||
+    (options.documentType !== 'invoice' && fee.payment_status === 'paid');
   const pdf = await PDFDocument.create();
   const page = pdf.addPage([595.28, 841.89]); // A4
   const font = await pdf.embedFont(StandardFonts.Helvetica);
@@ -167,14 +171,14 @@ export async function buildMembershipInvoicePdf(options: {
     font: fontBold,
     color: WHITE,
   });
-  page.drawText('Madikai-Kerala', {
+  page.drawText(isReceipt ? 'Payment Receipt' : 'Membership Invoice', {
     x: margin + 72,
     y: height - 68,
     size: 11,
     font,
     color: rgb(0.9, 0.96, 0.95),
   });
-  page.drawText('India', {
+  page.drawText('Madikai-Kerala, India', {
     x: margin + 72,
     y: height - 84,
     size: 9,
@@ -182,9 +186,9 @@ export async function buildMembershipInvoicePdf(options: {
     color: rgb(0.85, 0.93, 0.92),
   });
 
-  const invoiceNo = `INV-${member.member_id}-${fee.id}`;
-  page.drawText(invoiceNo, {
-    x: width - margin - fontBold.widthOfTextAtSize(invoiceNo, 12),
+  const docNo = `${isReceipt ? 'RCP' : 'INV'}-${member.member_id}-${fee.id}`;
+  page.drawText(docNo, {
+    x: width - margin - fontBold.widthOfTextAtSize(docNo, 12),
     y: height - 48,
     size: 12,
     font: fontBold,
@@ -200,8 +204,8 @@ export async function buildMembershipInvoicePdf(options: {
 
   y = height - 140;
 
-  // Bill to + invoice meta
-  page.drawText('BILL TO', {
+  // Party + document meta
+  page.drawText(isReceipt ? 'RECEIVED FROM' : 'BILL TO', {
     x: margin,
     y,
     size: 9,
@@ -251,11 +255,17 @@ export async function buildMembershipInvoicePdf(options: {
   const isLifetime =
     fee.fee_type === 'lifetime_membership' || fee.fee_year === 'lifetime';
   const dueDateLabel = isLifetime ? 'Life time access' : formatDate(fee.due_date);
-  const meta = [
-    ['Status', statusLabel(fee.payment_status)],
-    ['Due date', dueDateLabel],
-    ['Paid date', formatDate(fee.paid_date)],
-  ];
+  const meta: Array<[string, string]> = isReceipt
+    ? [
+        ['Status', 'Paid'],
+        ['Paid date', formatDate(fee.paid_date)],
+        ['Payment', fee.payment_method ? String(fee.payment_method) : '—'],
+      ]
+    : [
+        ['Status', statusLabel(fee.payment_status)],
+        ['Due date', dueDateLabel],
+        ['Paid date', formatDate(fee.paid_date)],
+      ];
   for (const [label, value] of meta) {
     page.drawText(label, {
       x: metaX,
@@ -335,7 +345,7 @@ export async function buildMembershipInvoicePdf(options: {
     height: 44,
     color: TEAL,
   });
-  page.drawText('TOTAL DUE', {
+  page.drawText(isReceipt ? 'AMOUNT RECEIVED' : 'TOTAL DUE', {
     x: width - margin - 188,
     y: y + 12,
     size: 9,
@@ -368,20 +378,30 @@ export async function buildMembershipInvoicePdf(options: {
     thickness: 1,
     color: BORDER,
   });
-  page.drawText('Thank you for supporting Madikai Pravasi Association (MPA).', {
-    x: margin,
-    y: 52,
-    size: 9,
-    font,
-    color: MUTED,
-  });
-  page.drawText('This is a computer-generated membership invoice.', {
-    x: margin,
-    y: 38,
-    size: 8,
-    font,
-    color: MUTED,
-  });
+  page.drawText(
+    isReceipt
+      ? 'Thank you for your payment and continued support of Madikai Pravasi Association (MPA).'
+      : 'Thank you for supporting Madikai Pravasi Association (MPA).',
+    {
+      x: margin,
+      y: 52,
+      size: 9,
+      font,
+      color: MUTED,
+    }
+  );
+  page.drawText(
+    isReceipt
+      ? 'This is a computer-generated membership payment receipt.'
+      : 'This is a computer-generated membership invoice.',
+    {
+      x: margin,
+      y: 38,
+      size: 8,
+      font,
+      color: MUTED,
+    }
+  );
 
   return pdf.save();
 }

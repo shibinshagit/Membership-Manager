@@ -58,7 +58,10 @@ export async function GET(
     }
 
     const row = rows[0];
+    const isPaid = String(row.payment_status) === 'paid';
+    const documentType = isPaid ? 'receipt' : 'invoice';
     const pdfBytes = await buildMembershipInvoicePdf({
+      documentType,
       fee: {
         id: Number(row.id),
         fee_type: String(row.fee_type),
@@ -87,7 +90,9 @@ export async function GET(
       },
     });
 
-    const filename = `MPA-Invoice-${row.member_code}-${row.id}.pdf`;
+    const filename = isPaid
+      ? `MPA-Receipt-${row.member_code}-${row.id}.pdf`
+      : `MPA-Invoice-${row.member_code}-${row.id}.pdf`;
 
     return new NextResponse(Buffer.from(pdfBytes), {
       status: 200,
@@ -98,7 +103,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error('Invoice PDF error:', error);
-    return NextResponse.json({ error: 'Failed to generate invoice PDF' }, { status: 500 });
+    console.error('Invoice/Receipt PDF error:', error);
+    return NextResponse.json({ error: 'Failed to generate PDF' }, { status: 500 });
   }
 }

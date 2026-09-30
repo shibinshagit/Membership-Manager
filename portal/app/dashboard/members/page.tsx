@@ -20,6 +20,7 @@ import {
   UsersRound,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Download,
   Link2,
   Check,
@@ -27,6 +28,7 @@ import {
   Copy,
   CheckCheck,
   Search,
+  ListFilter,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PageHeader, FilterBar } from '@/components/dashboard/page-header';
@@ -57,6 +59,8 @@ import { MembershipYearsPicker } from '@/components/members/membership-years-pic
 import { WelfareBadge } from '@/components/members/welfare-badge';
 import { WhatsAppGroupBadge } from '@/components/members/whatsapp-group-badge';
 import { currentCalendarYear, ORG_START_YEAR } from '@/lib/fees-calendar';
+import { normalizeWhatsAppPhone } from '@/lib/members/normalize-phone';
+import { displayMemberPhone } from '@/lib/members/phone-canonical';
 
 interface Member {
   id: number;
@@ -91,7 +95,7 @@ function memberDueAmount(member: Member): number {
 }
 
 function memberWhatsAppPhone(member: Member): string | null {
-  const phone = (member.whatsapp_number || member.phone || '').replace(/\D/g, '');
+  const phone = normalizeWhatsAppPhone(member.whatsapp_number || member.phone || '');
   return phone || null;
 }
 
@@ -234,7 +238,9 @@ export default function MembersPage() {
   const [noPaymentsOnly, setNoPaymentsOnly] = useState(false);
   const [welfareOnly, setWelfareOnly] = useState(false);
   const [whatsappGroupFilter, setWhatsappGroupFilter] = useState('all');
+  const [dueAmountFilter, setDueAmountFilter] = useState('all');
   const [locality, setLocality] = useState('');
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const [waGroupLoadingId, setWaGroupLoadingId] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
@@ -372,6 +378,9 @@ export default function MembersPage() {
       if (whatsappGroupFilter === 'added' || whatsappGroupFilter === 'not_added') {
         params.set('whatsapp_group', whatsappGroupFilter);
       }
+      if (dueAmountFilter === '50' || dueAmountFilter === '100' || dueAmountFilter === 'gt200') {
+        params.set('due_amount', dueAmountFilter);
+      }
       if (locality) params.set('locality', locality);
       params.set('page', page.toString());
 
@@ -393,7 +402,7 @@ export default function MembersPage() {
     return () => {
       cancelled = true;
     };
-  }, [search, status, visaStatus, maritalStatus, gender, membershipPlanFilter, joinYearFilter, noPaymentsOnly, welfareOnly, whatsappGroupFilter, locality, page, reloadToken]);
+  }, [search, status, visaStatus, maritalStatus, gender, membershipPlanFilter, joinYearFilter, noPaymentsOnly, welfareOnly, whatsappGroupFilter, dueAmountFilter, locality, page, reloadToken]);
 
   const pageIds = useMemo(() => members.map((m) => m.id), [members]);
   const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
@@ -525,6 +534,133 @@ export default function MembersPage() {
     setPage(1);
   };
 
+  const activeFilterChips = useMemo(() => {
+    const chips: { key: string; label: string; clear: () => void }[] = [];
+    if (status !== 'all') {
+      chips.push({
+        key: 'status',
+        label: `Status: ${STATUS_OPTIONS.find((o) => o.value === status)?.label || status}`,
+        clear: () => setStatus('all'),
+      });
+    }
+    if (dueAmountFilter === '50') {
+      chips.push({ key: 'due', label: 'Due AED 50', clear: () => setDueAmountFilter('all') });
+    } else if (dueAmountFilter === '100') {
+      chips.push({ key: 'due', label: 'Due AED 100', clear: () => setDueAmountFilter('all') });
+    } else if (dueAmountFilter === 'gt200') {
+      chips.push({
+        key: 'due',
+        label: 'Due more than AED 200',
+        clear: () => setDueAmountFilter('all'),
+      });
+    }
+    if (visaStatus !== 'all') {
+      chips.push({
+        key: 'visa',
+        label: `Visa: ${visaStatus}`,
+        clear: () => setVisaStatus('all'),
+      });
+    }
+    if (maritalStatus !== 'all') {
+      chips.push({
+        key: 'marital',
+        label: `Marital: ${maritalStatus}`,
+        clear: () => setMaritalStatus('all'),
+      });
+    }
+    if (gender !== 'all') {
+      chips.push({
+        key: 'gender',
+        label: `Gender: ${gender}`,
+        clear: () => setGender('all'),
+      });
+    }
+    if (membershipPlanFilter !== 'all') {
+      chips.push({
+        key: 'plan',
+        label: `Plan: ${membershipPlanFilter === 'lifetime' ? 'Lifetime' : 'Annual'}`,
+        clear: () => setMembershipPlanFilter('all'),
+      });
+    }
+    if (joinYearFilter !== 'all') {
+      chips.push({
+        key: 'join',
+        label: `Join year: ${joinYearFilter}`,
+        clear: () => setJoinYearFilter('all'),
+      });
+    }
+    if (noPaymentsOnly) {
+      chips.push({
+        key: 'no_payments',
+        label: 'No payments ever',
+        clear: () => setNoPaymentsOnly(false),
+      });
+    }
+    if (welfareOnly) {
+      chips.push({
+        key: 'welfare',
+        label: 'Welfare members',
+        clear: () => setWelfareOnly(false),
+      });
+    }
+    if (whatsappGroupFilter === 'added') {
+      chips.push({
+        key: 'wa',
+        label: 'In WA group',
+        clear: () => setWhatsappGroupFilter('all'),
+      });
+    } else if (whatsappGroupFilter === 'not_added') {
+      chips.push({
+        key: 'wa',
+        label: 'Not in WA group',
+        clear: () => setWhatsappGroupFilter('all'),
+      });
+    }
+    if (locality.trim()) {
+      chips.push({
+        key: 'locality',
+        label: `Locality: ${locality.trim()}`,
+        clear: () => setLocality(''),
+      });
+    }
+    return chips;
+  }, [
+    status,
+    dueAmountFilter,
+    visaStatus,
+    maritalStatus,
+    gender,
+    membershipPlanFilter,
+    joinYearFilter,
+    noPaymentsOnly,
+    welfareOnly,
+    whatsappGroupFilter,
+    locality,
+  ]);
+
+  const moreFiltersCount = useMemo(
+    () =>
+      activeFilterChips.filter(
+        (chip) => chip.key !== 'status' && chip.key !== 'due'
+      ).length,
+    [activeFilterChips]
+  );
+
+  const clearAllFilters = () => {
+    setStatus('all');
+    setVisaStatus('all');
+    setMaritalStatus('all');
+    setGender('all');
+    setMembershipPlanFilter('all');
+    setJoinYearFilter('all');
+    setNoPaymentsOnly(false);
+    setWelfareOnly(false);
+    setWhatsappGroupFilter('all');
+    setDueAmountFilter('all');
+    setLocality('');
+    setPage(1);
+  };
+
   const handleExportCsv = () => {
     const params = new URLSearchParams();
     if (search) params.set('search', search);
@@ -540,6 +676,9 @@ export default function MembersPage() {
     if (welfareOnly) params.set('welfare', '1');
     if (whatsappGroupFilter === 'added' || whatsappGroupFilter === 'not_added') {
       params.set('whatsapp_group', whatsappGroupFilter);
+    }
+    if (dueAmountFilter === '50' || dueAmountFilter === '100' || dueAmountFilter === 'gt200') {
+      params.set('due_amount', dueAmountFilter);
     }
     if (locality) params.set('locality', locality);
     params.set('export', 'csv');
@@ -585,8 +724,8 @@ export default function MembersPage() {
 
       <FilterBar>
         <form onSubmit={handleSearch} className="space-y-3">
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <div className="relative flex-1">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+            <div className="relative min-w-0 flex-1">
               <AppIcon
                 icon={Search}
                 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
@@ -598,173 +737,280 @@ export default function MembersPage() {
                 className="pl-9"
               />
             </div>
-            <Input
-              placeholder="Locality"
-              value={locality}
-              onChange={(e) => setLocality(e.target.value)}
-              className="w-full sm:w-48"
-            />
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-            <Select
-              value={status}
-              onValueChange={(v) => {
-                setStatus(v);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className="w-full sm:w-40">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                {STATUS_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={visaStatus}
-              onValueChange={(v) => {
-                setVisaStatus(v);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className="w-full sm:w-44">
-                <SelectValue placeholder="Visa status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Visa Status</SelectItem>
-                <SelectItem value="employment">Employment</SelectItem>
-                <SelectItem value="residence">Residence</SelectItem>
-                <SelectItem value="investor">Investor</SelectItem>
-                <SelectItem value="dependent">Dependent</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select
-              value={maritalStatus}
-              onValueChange={(v) => {
-                setMaritalStatus(v);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className="w-full sm:w-44">
-                <SelectValue placeholder="Marital status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Marital Status</SelectItem>
-                <SelectItem value="single">Single</SelectItem>
-                <SelectItem value="married">Married</SelectItem>
-                <SelectItem value="widowed">Widowed</SelectItem>
-                <SelectItem value="divorced">Divorced</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select
-              value={gender}
-              onValueChange={(v) => {
-                setGender(v);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className="w-full sm:w-40">
-                <SelectValue placeholder="Gender" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Gender</SelectItem>
-                <SelectItem value="male">Male</SelectItem>
-                <SelectItem value="female">Female</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select
-              value={membershipPlanFilter}
-              onValueChange={(v) => {
-                setMembershipPlanFilter(v);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className="w-full sm:w-40">
-                <SelectValue placeholder="Plan" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Plans</SelectItem>
-                <SelectItem value="annual">Annual / Yearly</SelectItem>
-                <SelectItem value="lifetime">Lifetime</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select
-              value={joinYearFilter}
-              onValueChange={(v) => {
-                setJoinYearFilter(v);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className="w-full sm:w-40">
-                <SelectValue placeholder="Join year" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Join Years</SelectItem>
-                {joinYearOptions.map((y) => (
-                  <SelectItem key={y} value={String(y)}>
-                    {y}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="flex h-9 items-center gap-2 rounded-lg border border-input bg-card px-3">
-              <Switch
-                id="no-payments-toggle"
-                checked={noPaymentsOnly}
-                onCheckedChange={(checked) => {
-                  setNoPaymentsOnly(checked === true);
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Select
+                value={status}
+                onValueChange={(v) => {
+                  setStatus(v);
                   setPage(1);
                 }}
-              />
-              <Label htmlFor="no-payments-toggle" className="cursor-pointer whitespace-nowrap text-sm font-normal">
-                No payments ever
-              </Label>
-            </div>
-            <div className="flex h-9 items-center gap-2 rounded-lg border border-input bg-card px-3">
-              <Switch
-                id="welfare-only-toggle"
-                checked={welfareOnly}
-                onCheckedChange={(checked) => {
-                  setWelfareOnly(checked === true);
+              >
+                <SelectTrigger className="w-full sm:w-[9.5rem]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  {STATUS_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={dueAmountFilter}
+                onValueChange={(v) => {
+                  setDueAmountFilter(v);
                   setPage(1);
                 }}
-              />
-              <Label htmlFor="welfare-only-toggle" className="cursor-pointer whitespace-nowrap text-sm font-normal">
-                Welfare members
-              </Label>
-            </div>
-            <Select
-              value={whatsappGroupFilter}
-              onValueChange={(v) => {
-                setWhatsappGroupFilter(v);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className="w-full sm:w-48">
-                <SelectValue placeholder="WhatsApp group" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All WA group</SelectItem>
-                <SelectItem value="not_added">Not in WA group</SelectItem>
-                <SelectItem value="added">In WA group</SelectItem>
-              </SelectContent>
-            </Select>
-            <div className="flex flex-wrap gap-2 sm:ml-auto">
-              <Button type="submit" variant="secondary">
-                <AppIcon icon={Search} className="h-4 w-4" />
-                Search
+              >
+                <SelectTrigger className="w-full sm:w-[11rem]">
+                  <SelectValue placeholder="Due amount" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Due</SelectItem>
+                  <SelectItem value="50">Due AED 50</SelectItem>
+                  <SelectItem value="100">Due AED 100</SelectItem>
+                  <SelectItem value="gt200">Due more than AED 200</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant={filtersOpen || moreFiltersCount > 0 ? 'secondary' : 'outline'}
+                onClick={() => setFiltersOpen((open) => !open)}
+                className="w-full sm:w-auto"
+              >
+                <AppIcon icon={ListFilter} className="h-4 w-4" />
+                Filters
+                {moreFiltersCount > 0 ? (
+                  <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-semibold text-primary-foreground">
+                    {moreFiltersCount}
+                  </span>
+                ) : null}
+                <AppIcon
+                  icon={ChevronDown}
+                  className={cn(
+                    'h-4 w-4 transition-transform',
+                    filtersOpen && 'rotate-180'
+                  )}
+                />
               </Button>
-              <Button type="button" variant="outline" onClick={handleExportCsv}>
+              <Button type="button" variant="outline" onClick={handleExportCsv} className="w-full sm:w-auto">
                 <AppIcon icon={Download} className="h-4 w-4" />
                 Export CSV
               </Button>
             </div>
           </div>
+
+          {activeFilterChips.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-2 border-t border-border/70 pt-3">
+              {activeFilterChips.map((chip) => (
+                <button
+                  key={chip.key}
+                  type="button"
+                  onClick={() => {
+                    chip.clear();
+                    setPage(1);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                >
+                  {chip.label}
+                  <X className="h-3 w-3 text-muted-foreground" />
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={clearAllFilters}
+                className="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+              >
+                Clear all
+              </button>
+            </div>
+          ) : null}
+
+          {filtersOpen ? (
+            <div className="space-y-4 rounded-lg border border-border/70 bg-muted/20 p-3 sm:p-4">
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Plan</Label>
+                  <Select
+                    value={membershipPlanFilter}
+                    onValueChange={(v) => {
+                      setMembershipPlanFilter(v);
+                      setPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Plan" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Plans</SelectItem>
+                      <SelectItem value="annual">Annual / Yearly</SelectItem>
+                      <SelectItem value="lifetime">Lifetime</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Join year</Label>
+                  <Select
+                    value={joinYearFilter}
+                    onValueChange={(v) => {
+                      setJoinYearFilter(v);
+                      setPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Join year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Join Years</SelectItem>
+                      {joinYearOptions.map((y) => (
+                        <SelectItem key={y} value={String(y)}>
+                          {y}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">WhatsApp group</Label>
+                  <Select
+                    value={whatsappGroupFilter}
+                    onValueChange={(v) => {
+                      setWhatsappGroupFilter(v);
+                      setPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="WhatsApp group" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All WA group</SelectItem>
+                      <SelectItem value="not_added">Not in WA group</SelectItem>
+                      <SelectItem value="added">In WA group</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Visa status</Label>
+                  <Select
+                    value={visaStatus}
+                    onValueChange={(v) => {
+                      setVisaStatus(v);
+                      setPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Visa status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Visa Status</SelectItem>
+                      <SelectItem value="employment">Employment</SelectItem>
+                      <SelectItem value="residence">Residence</SelectItem>
+                      <SelectItem value="investor">Investor</SelectItem>
+                      <SelectItem value="dependent">Dependent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Marital status</Label>
+                  <Select
+                    value={maritalStatus}
+                    onValueChange={(v) => {
+                      setMaritalStatus(v);
+                      setPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Marital status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Marital Status</SelectItem>
+                      <SelectItem value="single">Single</SelectItem>
+                      <SelectItem value="married">Married</SelectItem>
+                      <SelectItem value="widowed">Widowed</SelectItem>
+                      <SelectItem value="divorced">Divorced</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Gender</Label>
+                  <Select
+                    value={gender}
+                    onValueChange={(v) => {
+                      setGender(v);
+                      setPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Gender</SelectItem>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2 sm:col-span-2 xl:col-span-1">
+                  <Label className="text-xs text-muted-foreground">Locality</Label>
+                  <Input
+                    placeholder="Area, city, district, ward..."
+                    value={locality}
+                    onChange={(e) => setLocality(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 border-t border-border/60 pt-3 sm:flex-row sm:flex-wrap">
+                <div className="flex h-10 items-center gap-2 rounded-lg border border-input bg-card px-3">
+                  <Switch
+                    id="no-payments-toggle"
+                    checked={noPaymentsOnly}
+                    onCheckedChange={(checked) => {
+                      setNoPaymentsOnly(checked === true);
+                      setPage(1);
+                    }}
+                  />
+                  <Label
+                    htmlFor="no-payments-toggle"
+                    className="cursor-pointer whitespace-nowrap text-sm font-normal"
+                  >
+                    No payments ever
+                  </Label>
+                </div>
+                <div className="flex h-10 items-center gap-2 rounded-lg border border-input bg-card px-3">
+                  <Switch
+                    id="welfare-only-toggle"
+                    checked={welfareOnly}
+                    onCheckedChange={(checked) => {
+                      setWelfareOnly(checked === true);
+                      setPage(1);
+                    }}
+                  />
+                  <Label
+                    htmlFor="welfare-only-toggle"
+                    className="cursor-pointer whitespace-nowrap text-sm font-normal"
+                  >
+                    Welfare members
+                  </Label>
+                </div>
+                <div className="flex flex-wrap gap-2 sm:ml-auto">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={clearAllFilters}
+                    disabled={activeFilterChips.length === 0}
+                  >
+                    Clear filters
+                  </Button>
+                  <Button type="submit" variant="secondary" onClick={() => setFiltersOpen(false)}>
+                    Done
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </form>
       </FilterBar>
 
@@ -913,7 +1159,7 @@ export default function MembersPage() {
                         </div>
                         <p className="truncate text-xs text-muted-foreground">
                           {member.member_id}
-                          {member.phone ? ` · ${member.phone}` : ''}
+                          {member.phone ? ` · ${displayMemberPhone(member.phone)}` : ''}
                         </p>
                         <p
                           className={cn(
@@ -1042,7 +1288,9 @@ export default function MembersPage() {
                         ) : null}
                       </div>
                     </div>
-                    <p className="truncate text-sm text-muted-foreground">{member.phone}</p>
+                    <p className="truncate text-sm text-muted-foreground">
+                      {displayMemberPhone(member.phone)}
+                    </p>
                     <div>
                       <StatusBadge tone={memberStatusTone(member.status)}>
                         {member.status}

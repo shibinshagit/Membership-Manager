@@ -50,6 +50,7 @@ import {
 } from '@/components/dashboard/data-list';
 import { AppIcon } from '@/components/icons/app-icon';
 import { WhatsAppIcon } from '@/components/icons/whatsapp-icon';
+import { normalizeWhatsAppPhone } from '@/lib/members/normalize-phone';
 
 interface Fee {
   id: number;
@@ -190,7 +191,7 @@ export default function FeesPage() {
 
 
   const generateWhatsAppLink = (fee: Fee) => {
-    const phone = (fee.member_whatsapp || fee.member_phone).replace(/\D/g, '');
+    const phone = normalizeWhatsAppPhone(fee.member_whatsapp || fee.member_phone);
     const yearLabel = fee.fee_year === 'lifetime' ? 'lifetime' : fee.fee_year || '';
     const message = encodeURIComponent(
       `Hello ${fee.member_name},\n\nThis is a reminder about your ${getFeeTypeLabel(fee.fee_type, fee.fee_year, fee.amount)} payment of ${fee.currency} ${fee.amount.toLocaleString()}${yearLabel ? ` (${yearLabel})` : ''}.\n\nDue Date: ${format(new Date(fee.due_date), 'PP')}\n\nPlease make the payment at your earliest convenience.\n\nThank you!`
@@ -202,7 +203,7 @@ export default function FeesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Fees & Payments"
-        description="Yearly dues are created automatically per member. Download PDF invoices, mark paid, or send WhatsApp reminders."
+        description="Yearly dues are created automatically per member. Download PDF invoices or receipts, mark paid, or send WhatsApp reminders."
       />
 
       {stats && (
@@ -355,7 +356,11 @@ export default function FeesPage() {
                             href={`/api/fees/${fee.id}/invoice`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            title="Download PDF invoice"
+                            title={
+                              fee.payment_status === 'paid'
+                                ? 'Download PDF receipt'
+                                : 'Download PDF invoice'
+                            }
                           >
                             <FileDown className="h-3.5 w-3.5" />
                           </a>
@@ -454,7 +459,11 @@ export default function FeesPage() {
                         href={`/api/fees/${fee.id}/invoice`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        title="Download PDF invoice"
+                        title={
+                          fee.payment_status === 'paid'
+                            ? 'Download PDF receipt'
+                            : 'Download PDF invoice'
+                        }
                       >
                         <FileDown className="h-3.5 w-3.5" />
                       </a>

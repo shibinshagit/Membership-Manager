@@ -78,36 +78,11 @@ export async function downloadIdentityCardPng(element: HTMLElement, filename: st
   link.click();
 }
 
-/** Digits only, with country code when possible. */
-export function normalizeWhatsAppPhone(raw: string): string {
-  let digits = String(raw || '').replace(/\D/g, '');
-  if (!digits) return '';
+import { normalizeWhatsAppPhone } from '@/lib/members/normalize-phone';
 
-  if (digits.startsWith('00')) digits = digits.slice(2);
+export { normalizeWhatsAppPhone };
 
-  // Already has a country code (UAE / India / etc.)
-  if (digits.startsWith('971') || digits.startsWith('91')) {
-    return digits;
-  }
-
-  // UAE mobile without country code (5xxxxxxxx / 05xxxxxxxx)
-  if (digits.length === 9 && digits.startsWith('5')) {
-    return `971${digits}`;
-  }
-  if (digits.length === 10 && digits.startsWith('05')) {
-    return `971${digits.slice(1)}`;
-  }
-  if (digits.length === 10 && digits.startsWith('5')) {
-    return `971${digits}`;
-  }
-
-  // India mobile without country code
-  if (digits.length === 10 && /^[6-9]/.test(digits)) {
-    return `91${digits}`;
-  }
-
-  return digits;
-}
+/** Digits only, with country code when possible — see normalize-phone.ts */
 
 export function buildIdentityCardWhatsAppMessage(data: {
   fullName: string;

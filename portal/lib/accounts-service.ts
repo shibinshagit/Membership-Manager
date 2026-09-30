@@ -114,7 +114,18 @@ export async function getExpenses(year: number): Promise<ExpenseRow[]> {
     WHERE entry_year = ${year}
     ORDER BY entry_date DESC, id DESC
   `;
-  return rows as ExpenseRow[];
+  return (rows as Array<Record<string, unknown>>).map((row) => ({
+    id: Number(row.id),
+    entry_year: Number(row.entry_year),
+    entry_date: String(row.entry_date || '').slice(0, 10),
+    category: String(row.category || ''),
+    description: row.description ? String(row.description) : null,
+    amount: Number(row.amount ?? 0),
+    currency: String(row.currency || 'AED'),
+    payment_method: row.payment_method ? String(row.payment_method) : null,
+    reference: row.reference ? String(row.reference) : null,
+    created_at: String(row.created_at || ''),
+  }));
 }
 
 export async function getPettyCashEntries(year: number): Promise<PettyCashRow[]> {
@@ -124,7 +135,17 @@ export async function getPettyCashEntries(year: number): Promise<PettyCashRow[]>
     WHERE entry_year = ${year}
     ORDER BY entry_date DESC, id DESC
   `;
-  return rows as PettyCashRow[];
+  return (rows as Array<Record<string, unknown>>).map((row) => ({
+    id: Number(row.id),
+    entry_year: Number(row.entry_year),
+    entry_date: String(row.entry_date || '').slice(0, 10),
+    entry_type: row.entry_type === 'income' ? 'income' : 'expense',
+    category: row.category ? String(row.category) : null,
+    description: row.description ? String(row.description) : null,
+    amount: Number(row.amount ?? 0),
+    currency: String(row.currency || 'AED'),
+    created_at: String(row.created_at || ''),
+  }));
 }
 
 export function buildIncomeBreakdown(rows: MembershipIncomeRow[]): IncomeBreakdown[] {

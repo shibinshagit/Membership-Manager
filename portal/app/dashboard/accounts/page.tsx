@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import {
@@ -11,6 +11,7 @@ import {
   CircleDollarSign,
   Loader2,
   Plus,
+  Pencil,
   Trash2,
   TrendingDown,
   TrendingUp,
@@ -20,13 +21,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -46,6 +40,10 @@ import {
   StatusBadge,
 } from '@/components/dashboard/data-list';
 import { AppIcon } from '@/components/icons/app-icon';
+import {
+  CategoryCombobox,
+  mergeCategoryOptions,
+} from '@/components/accounts/category-combobox';
 import { currentCalendarYear, ORG_START_YEAR } from '@/lib/fees-calendar';
 import type {
   AccountsSummary,
@@ -78,7 +76,19 @@ const INCOME_COLS =
 const EXPENSE_COLS =
   'grid-cols-[minmax(8rem,1fr)_minmax(10rem,1.2fr)_6rem_5rem_4rem]';
 const PETTY_COLS =
-  'grid-cols-[5.5rem_minmax(8rem,1fr)_minmax(10rem,1.2fr)_6rem_4rem]';
+  'grid-cols-[5.5rem_5.5rem_minmax(8rem,1.2fr)_6rem_5.5rem]';
+
+function formatMoney(value: unknown): string {
+  const n = Number(value ?? 0);
+  return Number.isFinite(n) ? n.toLocaleString() : '0';
+}
+
+function formatDateLabel(value: string | null | undefined): string {
+  if (!value) return '—';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value).slice(0, 10);
+  return format(d, 'dd MMM yyyy');
+}
 
 export default function AccountsPage() {
   const [year, setYear] = useState(currentCalendarYear());
@@ -93,6 +103,8 @@ export default function AccountsPage() {
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
   const [pettyDialogOpen, setPettyDialogOpen] = useState(false);
   const [pettyType, setPettyType] = useState<'income' | 'expense'>('expense');
+  const [editingExpenseId, setEditingExpenseId] = useState<number | null>(null);
+  const [editingPettyId, setEditingPettyId] = useState<number | null>(null);
 
   const [expenseForm, setExpenseForm] = useState({
     entry_date: new Date().toISOString().slice(0, 10),
@@ -109,6 +121,28 @@ export default function AccountsPage() {
     description: '',
     amount: '',
   });
+  const [customExpenseCategories, setCustomExpenseCategories] = useState<string[]>([]);
+  const [customPettyCategories, setCustomPettyCategories] = useState<string[]>([]);
+
+  const expenseCategoryOptions = useMemo(
+    () =>
+      mergeCategoryOptions(
+        EXPENSE_CATEGORIES,
+        customExpenseCategories,
+        expenses.map((row) => row.category)
+      ),
+    [customExpenseCategories, expenses]
+  );
+
+  const pettyCategoryOptions = useMemo(
+    () =>
+      mergeCategoryOptions(
+        PETTY_CASH_CATEGORIES,
+        customPettyCategories,
+        pettyCash.map((row) => row.category)
+      ),
+    [customPettyCategories, pettyCash]
+  );
 
   const loadAccounts = useCallback(async () => {
     setLoading(true);
@@ -135,35 +169,110 @@ export default function AccountsPage() {
     loadAccounts();
   }, [loadAccounts]);
 
-  const openPettyDialog = (type: 'income' | 'expense') => {
-    setPettyType(type);
-    setPettyForm({
-      entry_date: new Date().toISOString().slice(0, 10),
-      category: type === 'income' ? 'Top-up' : 'Miscellaneous',
-      description: '',
-      amount: '',
-    });
+  const openExpenseDialog = (row?: ExpenseRow) => {
+    if (row) {
+      setEditingExpenseId(row.id);
+      setExpenseForm({
+        entry_date: String(row.entry_date).slice(0, 10),
+        category: row.category || 'Miscellaneous',
+        description: row.description || '',
+        amount: String(row.amount ?? ''),
+        payment_method: row.payment_method || '',
+        reference: row.reference || '',
+      });
+    } else {
+      setEditingExpenseId(null);
+      setExpenseForm({
+        entry_date: new Date().toISOString().slice(0, 10),
+        category: 'Miscellaneous',
+        description: '',
+        amount: '',
+        payment_method: '',
+        reference: '',
+      });
+    }
+    setExpenseDialogOpen(true);
+  };
+
+  const openPettyDialog = (type: 'income' | 'expense', row?: PettyCashRow) => {
+    if (row) {
+      setEditingPettyId(row.id);
+      setPettyType(row.entry_type);
+      setPettyForm({
+        entry_date: String(row.entry_date).slice(0, 10),
+        category: row.category || (row.entry_type === 'income' ? 'Top-up' : 'Miscellaneous'),
+        description: row.description || '',
+        amount: String(row.amount ?? ''),
+      });
+    } else {
+      setEditingPettyId(null);
+      setPettyType(type);
+      setPettyForm({
+        entry_date: new Date().toISOString().slice(0, 10),
+        category: type === 'income' ? 'Top-up' : 'Miscellaneous',
+        description: '',
+        amount: '',
+      });
+    }
     setPettyDialogOpen(true);
   };
 
-  const handleAddExpense = async () => {
+  const renameCategory = async (
+    scope: 'expense' | 'petty_cash',
+    from: string,
+    to: string
+  ) => {
+    const res = await fetch('/api/accounts/categories', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scope, from, to }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to rename category');
+    }
+    if (scope === 'expense') {
+      setCustomExpenseCategories((prev) =>
+        mergeCategoryOptions(
+          prev.filter((c) => c.toLowerCase() !== from.toLowerCase()),
+          [to]
+        )
+      );
+    } else {
+      setCustomPettyCategories((prev) =>
+        mergeCategoryOptions(
+          prev.filter((c) => c.toLowerCase() !== from.toLowerCase()),
+          [to]
+        )
+      );
+    }
+    await loadAccounts();
+  };
+
+  const handleSaveExpense = async () => {
     setSaving(true);
     setMessage(null);
     try {
-      const res = await fetch('/api/accounts/expenses', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...expenseForm,
-          amount: Number(expenseForm.amount),
-        }),
-      });
+      const res = await fetch(
+        editingExpenseId
+          ? `/api/accounts/expenses/${editingExpenseId}`
+          : '/api/accounts/expenses',
+        {
+          method: editingExpenseId ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...expenseForm,
+            amount: Number(expenseForm.amount),
+          }),
+        }
+      );
       const data = await res.json();
       if (!res.ok) {
-        setMessage(data.error || 'Failed to add expense');
+        setMessage(data.error || 'Failed to save expense');
         return;
       }
       setExpenseDialogOpen(false);
+      setEditingExpenseId(null);
       setExpenseForm({
         entry_date: new Date().toISOString().slice(0, 10),
         category: 'Miscellaneous',
@@ -178,25 +287,31 @@ export default function AccountsPage() {
     }
   };
 
-  const handleAddPettyCash = async () => {
+  const handleSavePettyCash = async () => {
     setSaving(true);
     setMessage(null);
     try {
-      const res = await fetch('/api/accounts/petty-cash', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...pettyForm,
-          entry_type: pettyType,
-          amount: Number(pettyForm.amount),
-        }),
-      });
+      const res = await fetch(
+        editingPettyId
+          ? `/api/accounts/petty-cash/${editingPettyId}`
+          : '/api/accounts/petty-cash',
+        {
+          method: editingPettyId ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...pettyForm,
+            entry_type: pettyType,
+            amount: Number(pettyForm.amount),
+          }),
+        }
+      );
       const data = await res.json();
       if (!res.ok) {
-        setMessage(data.error || 'Failed to add petty cash entry');
+        setMessage(data.error || 'Failed to save petty cash entry');
         return;
       }
       setPettyDialogOpen(false);
+      setEditingPettyId(null);
       await loadAccounts();
     } finally {
       setSaving(false);
@@ -270,25 +385,25 @@ export default function AccountsPage() {
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
             title="Total Income"
-            value={`AED ${summary.total_income.toLocaleString()}`}
-            description={`Membership AED ${summary.membership_income_total.toLocaleString()} · Petty cash in AED ${summary.petty_cash_income_total.toLocaleString()}`}
+            value={`AED ${formatMoney(summary.total_income)}`}
+            description={`Membership AED ${formatMoney(summary.membership_income_total)} · Petty cash in AED ${formatMoney(summary.petty_cash_income_total)}`}
             icon={TrendingUp}
           />
           <StatCard
             title="Total Expenses"
-            value={`AED ${summary.total_expenses.toLocaleString()}`}
-            description={`General AED ${summary.expense_total.toLocaleString()} · Petty cash out AED ${summary.petty_cash_expense_total.toLocaleString()}`}
+            value={`AED ${formatMoney(summary.total_expenses)}`}
+            description={`General AED ${formatMoney(summary.expense_total)} · Petty cash out AED ${formatMoney(summary.petty_cash_expense_total)}`}
             icon={TrendingDown}
           />
           <StatCard
             title="Net Balance"
-            value={`AED ${summary.net_balance.toLocaleString()}`}
+            value={`AED ${formatMoney(summary.net_balance)}`}
             description="Income minus all expenses"
             icon={CircleDollarSign}
           />
           <StatCard
             title="Petty Cash Net"
-            value={`AED ${summary.petty_cash_net.toLocaleString()}`}
+            value={`AED ${formatMoney(summary.petty_cash_net)}`}
             description="Petty cash in minus petty cash out"
             icon={Wallet}
           />
@@ -321,7 +436,7 @@ export default function AccountsPage() {
                         <span className="text-muted-foreground">({row.count})</span>
                       </span>
                       <span className="font-medium tabular-nums">
-                        AED {row.total.toLocaleString()}
+                        AED {formatMoney(row.total)}
                       </span>
                     </li>
                   ))}
@@ -335,7 +450,7 @@ export default function AccountsPage() {
                 Quick actions
               </h3>
               <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                <Button variant="outline" onClick={() => setExpenseDialogOpen(true)}>
+                <Button variant="outline" onClick={() => openExpenseDialog()}>
                   <AppIcon icon={Plus} className="h-4 w-4" />
                   Add expense
                 </Button>
@@ -379,10 +494,10 @@ export default function AccountsPage() {
                     </div>
                     <p className="truncate text-sm">{row.label}</p>
                     <p className="text-sm text-muted-foreground">
-                      {row.paid_date ? format(new Date(row.paid_date), 'dd MMM yyyy') : '—'}
+                      {formatDateLabel(row.paid_date)}
                     </p>
                     <p className="text-right font-medium tabular-nums">
-                      {row.currency} {row.amount.toLocaleString()}
+                      {row.currency} {formatMoney(row.amount)}
                     </p>
                     <div className="text-right">
                       <Button variant="ghost" size="sm" asChild>
@@ -398,7 +513,7 @@ export default function AccountsPage() {
 
         <TabsContent value="expenses" className="space-y-3">
           <div className="flex justify-end">
-            <Button onClick={() => setExpenseDialogOpen(true)}>
+            <Button onClick={() => openExpenseDialog()}>
               <AppIcon icon={Plus} className="h-4 w-4" />
               Add expense
             </Button>
@@ -412,7 +527,7 @@ export default function AccountsPage() {
                 title="No expenses"
                 description={`Add general expenses for ${year}.`}
                 action={
-                  <Button onClick={() => setExpenseDialogOpen(true)}>
+                  <Button onClick={() => openExpenseDialog()}>
                     <AppIcon icon={Plus} className="h-4 w-4" />
                     Add expense
                   </Button>
@@ -430,7 +545,7 @@ export default function AccountsPage() {
                 {expenses.map((row) => (
                   <DataListRow key={row.id} className={EXPENSE_COLS}>
                     <p className="text-sm">
-                      {format(new Date(row.entry_date), 'dd MMM yyyy')}
+                      {formatDateLabel(row.entry_date)}
                     </p>
                     <div className="min-w-0">
                       <p className="font-medium">{row.category}</p>
@@ -439,9 +554,17 @@ export default function AccountsPage() {
                       ) : null}
                     </div>
                     <p className="text-right font-medium tabular-nums text-destructive">
-                      {row.currency} {Number(row.amount).toLocaleString()}
+                      {row.currency} {formatMoney(row.amount)}
                     </p>
-                    <span />
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled={saving}
+                      onClick={() => openExpenseDialog(row)}
+                      title="Edit"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon-sm"
@@ -479,7 +602,7 @@ export default function AccountsPage() {
                 description={`Record petty cash income or expenses for ${year}.`}
               />
             ) : (
-              <DataListScroll minWidth="40rem">
+              <DataListScroll minWidth="44rem">
                 <div className={`grid ${PETTY_COLS} gap-3 border-b border-border/80 bg-muted/40 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground`}>
                   <span>Type</span>
                   <span>Date</span>
@@ -493,7 +616,7 @@ export default function AccountsPage() {
                       {row.entry_type}
                     </StatusBadge>
                     <p className="text-sm">
-                      {format(new Date(row.entry_date), 'dd MMM yyyy')}
+                      {formatDateLabel(row.entry_date)}
                     </p>
                     <div className="min-w-0">
                       <p className="font-medium">{row.category || '—'}</p>
@@ -507,17 +630,28 @@ export default function AccountsPage() {
                       }`}
                     >
                       {row.entry_type === 'income' ? '+' : '−'}
-                      {row.currency} {Number(row.amount).toLocaleString()}
+                      {row.currency} {formatMoney(row.amount)}
                     </p>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      disabled={saving}
-                      onClick={() => deletePettyCash(row.id)}
-                      title="Delete"
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        disabled={saving}
+                        onClick={() => openPettyDialog(row.entry_type, row)}
+                        title="Edit"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        disabled={saving}
+                        onClick={() => deletePettyCash(row.id)}
+                        title="Delete"
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
                   </DataListRow>
                 ))}
               </DataListScroll>
@@ -526,11 +660,21 @@ export default function AccountsPage() {
         </TabsContent>
       </Tabs>
 
-      <Dialog open={expenseDialogOpen} onOpenChange={setExpenseDialogOpen}>
+      <Dialog
+        open={expenseDialogOpen}
+        onOpenChange={(open) => {
+          setExpenseDialogOpen(open);
+          if (!open) setEditingExpenseId(null);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add expense</DialogTitle>
-            <DialogDescription>Record a general expense for {year}.</DialogDescription>
+            <DialogTitle>{editingExpenseId ? 'Edit expense' : 'Add expense'}</DialogTitle>
+            <DialogDescription>
+              {editingExpenseId
+                ? `Update this expense entry for ${year}.`
+                : `Record a general expense for ${year}.`}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
@@ -544,21 +688,17 @@ export default function AccountsPage() {
             </div>
             <div className="space-y-2">
               <Label>Category</Label>
-              <Select
+              <CategoryCombobox
                 value={expenseForm.category}
-                onValueChange={(v) => setExpenseForm({ ...expenseForm, category: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {EXPENSE_CATEGORIES.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                options={expenseCategoryOptions}
+                onChange={(next) => {
+                  setExpenseForm({ ...expenseForm, category: next });
+                  setCustomExpenseCategories((prev) =>
+                    mergeCategoryOptions(prev, [next])
+                  );
+                }}
+                onRename={(from, to) => renameCategory('expense', from, to)}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="expense_amount">Amount (AED)</Label>
@@ -604,22 +744,37 @@ export default function AccountsPage() {
             <Button variant="outline" onClick={() => setExpenseDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleAddExpense} disabled={saving}>
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save expense'}
+            <Button onClick={handleSaveExpense} disabled={saving}>
+              {saving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : editingExpenseId ? (
+                'Save changes'
+              ) : (
+                'Save expense'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={pettyDialogOpen} onOpenChange={setPettyDialogOpen}>
+      <Dialog
+        open={pettyDialogOpen}
+        onOpenChange={(open) => {
+          setPettyDialogOpen(open);
+          if (!open) setEditingPettyId(null);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              Petty cash {pettyType === 'income' ? 'income' : 'expense'}
+              {editingPettyId
+                ? `Edit petty cash ${pettyType}`
+                : `Petty cash ${pettyType === 'income' ? 'income' : 'expense'}`}
             </DialogTitle>
             <DialogDescription>
-              Record money {pettyType === 'income' ? 'added to' : 'spent from'} petty cash for{' '}
-              {year}.
+              {editingPettyId
+                ? `Update this petty cash ${pettyType} for ${year}.`
+                : `Record money ${pettyType === 'income' ? 'added to' : 'spent from'} petty cash for ${year}.`}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -634,21 +789,15 @@ export default function AccountsPage() {
             </div>
             <div className="space-y-2">
               <Label>Category</Label>
-              <Select
+              <CategoryCombobox
                 value={pettyForm.category}
-                onValueChange={(v) => setPettyForm({ ...pettyForm, category: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PETTY_CASH_CATEGORIES.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                options={pettyCategoryOptions}
+                onChange={(next) => {
+                  setPettyForm({ ...pettyForm, category: next });
+                  setCustomPettyCategories((prev) => mergeCategoryOptions(prev, [next]));
+                }}
+                onRename={(from, to) => renameCategory('petty_cash', from, to)}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="petty_amount">Amount (AED)</Label>
@@ -674,8 +823,14 @@ export default function AccountsPage() {
             <Button variant="outline" onClick={() => setPettyDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleAddPettyCash} disabled={saving}>
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save entry'}
+            <Button onClick={handleSavePettyCash} disabled={saving}>
+              {saving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : editingPettyId ? (
+                'Save changes'
+              ) : (
+                'Save entry'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

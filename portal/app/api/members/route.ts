@@ -20,6 +20,10 @@ import {
   ensureWhatsAppGroupColumn,
   hasAssignedExecutiveMemberColumn,
 } from '@/lib/db/compat';
+import {
+  canonicalizeMemberPhones,
+  displayMemberPhone,
+} from '@/lib/members/phone-canonical';
 
 export async function GET(request: Request) {
   const user = await getCurrentUser();
@@ -69,6 +73,11 @@ export async function GET(request: Request) {
       whatsappGroupParam === 'added' || whatsappGroupParam === 'not_added'
         ? whatsappGroupParam
         : null;
+    const dueAmountParam = searchParams.get('due_amount');
+    const dueAmountFilter =
+      dueAmountParam === '50' || dueAmountParam === '100' || dueAmountParam === 'gt200'
+        ? dueAmountParam
+        : null;
     const executiveIdInt = executiveId ? Number.parseInt(executiveId, 10) : null;
 
     await ensureWelfareColumns();
@@ -116,6 +125,36 @@ export async function GET(request: Request) {
               OR (
                 ${whatsappGroupFilter} = 'not_added'
                 AND COALESCE(m.added_to_whatsapp_group, false) = false
+              )
+            )
+            AND (
+              ${dueAmountFilter}::text IS NULL
+              OR (
+                ${dueAmountFilter} = '50'
+                AND COALESCE((
+                  SELECT SUM(mm.amount)::numeric
+                  FROM member_memberships mm
+                  WHERE mm.member_id = m.id
+                    AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                ), 0) = 50
+              )
+              OR (
+                ${dueAmountFilter} = '100'
+                AND COALESCE((
+                  SELECT SUM(mm.amount)::numeric
+                  FROM member_memberships mm
+                  WHERE mm.member_id = m.id
+                    AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                ), 0) = 100
+              )
+              OR (
+                ${dueAmountFilter} = 'gt200'
+                AND COALESCE((
+                  SELECT SUM(mm.amount)::numeric
+                  FROM member_memberships mm
+                  WHERE mm.member_id = m.id
+                    AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                ), 0) > 200
               )
             )
             AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_member_id = ${executiveIdInt})
@@ -177,6 +216,36 @@ export async function GET(request: Request) {
               OR (
                 ${whatsappGroupFilter} = 'not_added'
                 AND COALESCE(m.added_to_whatsapp_group, false) = false
+              )
+            )
+            AND (
+              ${dueAmountFilter}::text IS NULL
+              OR (
+                ${dueAmountFilter} = '50'
+                AND COALESCE((
+                  SELECT SUM(mm.amount)::numeric
+                  FROM member_memberships mm
+                  WHERE mm.member_id = m.id
+                    AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                ), 0) = 50
+              )
+              OR (
+                ${dueAmountFilter} = '100'
+                AND COALESCE((
+                  SELECT SUM(mm.amount)::numeric
+                  FROM member_memberships mm
+                  WHERE mm.member_id = m.id
+                    AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                ), 0) = 100
+              )
+              OR (
+                ${dueAmountFilter} = 'gt200'
+                AND COALESCE((
+                  SELECT SUM(mm.amount)::numeric
+                  FROM member_memberships mm
+                  WHERE mm.member_id = m.id
+                    AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                ), 0) > 200
               )
             )
             AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_id = ${executiveIdInt})
@@ -268,6 +337,36 @@ export async function GET(request: Request) {
                     AND COALESCE(m.added_to_whatsapp_group, false) = false
                   )
                 )
+                AND (
+                  ${dueAmountFilter}::text IS NULL
+                  OR (
+                    ${dueAmountFilter} = '50'
+                    AND COALESCE((
+                      SELECT SUM(mm.amount)::numeric
+                      FROM member_memberships mm
+                      WHERE mm.member_id = m.id
+                        AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                    ), 0) = 50
+                  )
+                  OR (
+                    ${dueAmountFilter} = '100'
+                    AND COALESCE((
+                      SELECT SUM(mm.amount)::numeric
+                      FROM member_memberships mm
+                      WHERE mm.member_id = m.id
+                        AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                    ), 0) = 100
+                  )
+                  OR (
+                    ${dueAmountFilter} = 'gt200'
+                    AND COALESCE((
+                      SELECT SUM(mm.amount)::numeric
+                      FROM member_memberships mm
+                      WHERE mm.member_id = m.id
+                        AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                    ), 0) > 200
+                  )
+                )
                 AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_member_id = ${executiveIdInt})
                 AND (
                   ${searchPattern}::text IS NULL OR
@@ -351,6 +450,36 @@ export async function GET(request: Request) {
                   OR (
                     ${whatsappGroupFilter} = 'not_added'
                     AND COALESCE(m.added_to_whatsapp_group, false) = false
+                  )
+                )
+                AND (
+                  ${dueAmountFilter}::text IS NULL
+                  OR (
+                    ${dueAmountFilter} = '50'
+                    AND COALESCE((
+                      SELECT SUM(mm.amount)::numeric
+                      FROM member_memberships mm
+                      WHERE mm.member_id = m.id
+                        AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                    ), 0) = 50
+                  )
+                  OR (
+                    ${dueAmountFilter} = '100'
+                    AND COALESCE((
+                      SELECT SUM(mm.amount)::numeric
+                      FROM member_memberships mm
+                      WHERE mm.member_id = m.id
+                        AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                    ), 0) = 100
+                  )
+                  OR (
+                    ${dueAmountFilter} = 'gt200'
+                    AND COALESCE((
+                      SELECT SUM(mm.amount)::numeric
+                      FROM member_memberships mm
+                      WHERE mm.member_id = m.id
+                        AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                    ), 0) > 200
                   )
                 )
                 AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_id = ${executiveIdInt})
@@ -439,6 +568,36 @@ export async function GET(request: Request) {
                   AND COALESCE(m.added_to_whatsapp_group, false) = false
                 )
               )
+              AND (
+                ${dueAmountFilter}::text IS NULL
+                OR (
+                  ${dueAmountFilter} = '50'
+                  AND COALESCE((
+                    SELECT SUM(mm.amount)::numeric
+                    FROM member_memberships mm
+                    WHERE mm.member_id = m.id
+                      AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                  ), 0) = 50
+                )
+                OR (
+                  ${dueAmountFilter} = '100'
+                  AND COALESCE((
+                    SELECT SUM(mm.amount)::numeric
+                    FROM member_memberships mm
+                    WHERE mm.member_id = m.id
+                      AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                  ), 0) = 100
+                )
+                OR (
+                  ${dueAmountFilter} = 'gt200'
+                  AND COALESCE((
+                    SELECT SUM(mm.amount)::numeric
+                    FROM member_memberships mm
+                    WHERE mm.member_id = m.id
+                      AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                  ), 0) > 200
+                )
+              )
               AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_member_id = ${executiveIdInt})
               AND (
                 ${searchPattern}::text IS NULL OR
@@ -525,6 +684,36 @@ export async function GET(request: Request) {
                   AND COALESCE(m.added_to_whatsapp_group, false) = false
                 )
               )
+              AND (
+                ${dueAmountFilter}::text IS NULL
+                OR (
+                  ${dueAmountFilter} = '50'
+                  AND COALESCE((
+                    SELECT SUM(mm.amount)::numeric
+                    FROM member_memberships mm
+                    WHERE mm.member_id = m.id
+                      AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                  ), 0) = 50
+                )
+                OR (
+                  ${dueAmountFilter} = '100'
+                  AND COALESCE((
+                    SELECT SUM(mm.amount)::numeric
+                    FROM member_memberships mm
+                    WHERE mm.member_id = m.id
+                      AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                  ), 0) = 100
+                )
+                OR (
+                  ${dueAmountFilter} = 'gt200'
+                  AND COALESCE((
+                    SELECT SUM(mm.amount)::numeric
+                    FROM member_memberships mm
+                    WHERE mm.member_id = m.id
+                      AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                  ), 0) > 200
+                )
+              )
               AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_id = ${executiveIdInt})
               AND (
                 ${searchPattern}::text IS NULL OR
@@ -572,8 +761,11 @@ export async function GET(request: Request) {
         [
           member.member_id,
           member.full_name,
-          member.phone,
-          member.whatsapp_number,
+          displayMemberPhone(member.phone ? String(member.phone) : null, 'AE'),
+          displayMemberPhone(
+            member.whatsapp_number ? String(member.whatsapp_number) : null,
+            'AE'
+          ),
           member.email,
           member.status,
           member.membership_type,
@@ -733,10 +925,19 @@ export async function POST(request: Request) {
       );
     }
 
+    const phones = canonicalizeMemberPhones({
+      phone,
+      whatsapp_number,
+      home_country_contact_number,
+    });
+    const canonicalPhone = phones.phone || String(phone).trim();
+    const canonicalWhatsapp = phones.whatsapp_number || phones.phone || String(phone).trim();
+    const canonicalHomeContact = phones.home_country_contact_number;
+
     const duplicateCheck = await checkMemberDuplicates(
       email?.trim() || null,
-      phone.trim(),
-      whatsapp_number?.trim() || phone.trim()
+      canonicalPhone,
+      canonicalWhatsapp
     );
     if (duplicateCheck.duplicate) {
       return NextResponse.json(
@@ -780,14 +981,14 @@ export async function POST(request: Request) {
             joined_date, membership_type, membership_plan, membership_payment_status,
             membership_start_date, membership_end_date, status, assigned_executive_member_id, notes
           ) VALUES (
-            ${memberId}, ${full_name}, ${email || null}, ${phone}, 
-            ${whatsapp_number || null}, ${date_of_birth || null},
+            ${memberId}, ${full_name}, ${email || null}, ${canonicalPhone}, 
+            ${canonicalWhatsapp || null}, ${date_of_birth || null},
             ${nominee || null}, ${ward_no}, ${emirates_id || null}, ${passport_number || null}, ${visa_status || null},
             ${profession || null}, ${company_name || null}, ${work_location || null},
             ${address || null}, ${uae_building || null}, ${uae_area || null}, ${uae_city || null}, ${full_name_arabic || null},
             ${gender || null}, ${blood_group || null}, ${marital_status || null}, ${emergency_contact || null},
             ${home_country_address || null}, ${home_state || null}, ${home_district || null}, ${home_local_body || null}, ${home_local_area_ward || null},
-            ${home_country_contact_number || null}, ${spouse_name || null}, ${normalizedChildrenCount}, ${children_details || null}, ${family_residing_with ?? null},
+            ${canonicalHomeContact || null}, ${spouse_name || null}, ${normalizedChildrenCount}, ${children_details || null}, ${family_residing_with ?? null},
             ${joined_date || new Date().toISOString().slice(0, 10)}, ${membership_type || 'member'}, ${resolvedPlan}, ${resolvedPaymentStatus},
             ${resolvedStartDate}, ${resolvedEndDate}, ${status || 'pending'},
             ${null}, ${notes || null}
@@ -805,14 +1006,14 @@ export async function POST(request: Request) {
             joined_date, membership_type, membership_plan, membership_payment_status,
             membership_start_date, membership_end_date, status, assigned_executive_id, notes
           ) VALUES (
-            ${memberId}, ${full_name}, ${email || null}, ${phone}, 
-            ${whatsapp_number || null}, ${date_of_birth || null},
+            ${memberId}, ${full_name}, ${email || null}, ${canonicalPhone}, 
+            ${canonicalWhatsapp || null}, ${date_of_birth || null},
             ${nominee || null}, ${ward_no}, ${emirates_id || null}, ${passport_number || null}, ${visa_status || null},
             ${profession || null}, ${company_name || null}, ${work_location || null},
             ${address || null}, ${uae_building || null}, ${uae_area || null}, ${uae_city || null}, ${full_name_arabic || null},
             ${gender || null}, ${blood_group || null}, ${marital_status || null}, ${emergency_contact || null},
             ${home_country_address || null}, ${home_state || null}, ${home_district || null}, ${home_local_body || null}, ${home_local_area_ward || null},
-            ${home_country_contact_number || null}, ${spouse_name || null}, ${normalizedChildrenCount}, ${children_details || null}, ${family_residing_with ?? null},
+            ${canonicalHomeContact || null}, ${spouse_name || null}, ${normalizedChildrenCount}, ${children_details || null}, ${family_residing_with ?? null},
             ${joined_date || new Date().toISOString().slice(0, 10)}, ${membership_type || 'member'}, ${resolvedPlan}, ${resolvedPaymentStatus},
             ${resolvedStartDate}, ${resolvedEndDate}, ${status || 'pending'},
             ${null}, ${notes || null}

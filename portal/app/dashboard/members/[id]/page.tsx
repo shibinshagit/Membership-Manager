@@ -80,6 +80,8 @@ import {
   normalizeFeeYearLabel,
   normalizeJoinYear,
 } from '@/lib/fees-calendar';
+import { normalizeWhatsAppPhone, normalizePhoneInputValue } from '@/lib/members/normalize-phone';
+import { displayMemberPhone } from '@/lib/members/phone-canonical';
 
 interface Member {
   id: number;
@@ -631,7 +633,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
   };
 
   const generateUnpaidInvoiceWhatsAppLink = (fee: Fee) => {
-    const phone = (member?.whatsapp_number || member?.phone || '').replace(/\D/g, '');
+    const phone = normalizeWhatsAppPhone(member?.whatsapp_number || member?.phone || '');
     if (!phone) return '#';
 
     const invoiceNo = `INV-${fee.id}`;
@@ -666,7 +668,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
   };
 
   const generatePaidFeeWhatsAppLink = (fee: Fee) => {
-    const phone = (member?.whatsapp_number || member?.phone || '').replace(/\D/g, '');
+    const phone = normalizeWhatsAppPhone(member?.whatsapp_number || member?.phone || '');
     if (!phone) return '#';
 
     const { dueAmount, dueYears } = getMembershipOutstanding();
@@ -1074,9 +1076,16 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                     <Input
                       value={formData.phone || ''}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      placeholder="+971 50 123 4567"
+                      onBlur={(e) =>
+                        setFormData({
+                          ...formData,
+                          phone: normalizePhoneInputValue(e.target.value, 'AE'),
+                        })
+                      }
                     />
                   ) : (
-                    <p className="text-sm">{member.phone}</p>
+                    <p className="text-sm">{displayMemberPhone(member.phone)}</p>
                   )}
                 </div>
                 <div className="space-y-2">
@@ -1085,13 +1094,22 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                     <Input
                       value={formData.whatsapp_number || ''}
                       onChange={(e) => setFormData({ ...formData, whatsapp_number: e.target.value })}
+                      placeholder="+971 50 123 4567"
+                      onBlur={(e) =>
+                        setFormData({
+                          ...formData,
+                          whatsapp_number: normalizePhoneInputValue(e.target.value, 'AE'),
+                        })
+                      }
                     />
                   ) : (
                     <div className="flex items-center gap-2">
-                      <p className="text-sm">{member.whatsapp_number || member.phone}</p>
+                      <p className="text-sm">
+                        {displayMemberPhone(member.whatsapp_number || member.phone)}
+                      </p>
                       <Button variant="ghost" size="sm" asChild>
                         <a
-                          href={`https://wa.me/${(member.whatsapp_number || member.phone).replace(/\D/g, '')}`}
+                          href={`https://wa.me/${normalizeWhatsAppPhone(member.whatsapp_number || member.phone)}`}
                           target="_blank"
                           rel="noopener noreferrer"
                         >
@@ -1364,9 +1382,23 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                       onChange={(e) =>
                         setFormData({ ...formData, home_country_contact_number: e.target.value })
                       }
+                      placeholder="+91 98765 43210"
+                      onBlur={(e) =>
+                        setFormData({
+                          ...formData,
+                          home_country_contact_number: normalizePhoneInputValue(
+                            e.target.value,
+                            'IN'
+                          ),
+                        })
+                      }
                     />
                   ) : (
-                    <p className="text-sm">{member.home_country_contact_number || '-'}</p>
+                    <p className="text-sm">
+                      {member.home_country_contact_number
+                        ? displayMemberPhone(member.home_country_contact_number, 'IN')
+                        : '-'}
+                    </p>
                   )}
                 </div>
                 <div className="space-y-2">
@@ -1858,7 +1890,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                         <Button variant="outline" size="sm" asChild>
                           <a href={`/api/fees/${fee.id}/invoice`} target="_blank" rel="noopener noreferrer">
                             <Download className="w-4 h-4 mr-2" />
-                            PDF Invoice
+                            {fee.payment_status === 'paid' ? 'PDF Receipt' : 'PDF Invoice'}
                           </a>
                         </Button>
                         <Button
@@ -1944,7 +1976,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
 
       {(member.whatsapp_number || member.phone) && (
         <a
-          href={`https://wa.me/${(member.whatsapp_number || member.phone || '').replace(/\D/g, '')}`}
+          href={`https://wa.me/${normalizeWhatsAppPhone(member.whatsapp_number || member.phone || '')}`}
           target="_blank"
           rel="noopener noreferrer"
           title="Message on WhatsApp"

@@ -1,4 +1,5 @@
 import { validateWardNo } from '@/lib/members/ward-numbers';
+import { isValidNormalizedPhone } from '@/lib/members/normalize-phone';
 
 export function validateAdminMemberFields(input: {
   full_name?: string | null;
@@ -18,10 +19,15 @@ export function validateAdminMemberFields(input: {
 
   if (!input.phone?.trim()) {
     errors.phone = 'Phone number is required.';
+  } else if (!isValidNormalizedPhone(input.phone, 'AE')) {
+    errors.phone = 'Please enter a valid UAE phone number (e.g. 050 123 4567 or +971…).';
   }
 
   if (!input.whatsapp_number?.trim()) {
     errors.whatsapp_number = 'WhatsApp number is required.';
+  } else if (!isValidNormalizedPhone(input.whatsapp_number, 'AE')) {
+    errors.whatsapp_number =
+      'Please enter a valid UAE WhatsApp number (e.g. 050 123 4567 or +971…).';
   }
 
   if (!input.emirates_id?.trim()) {

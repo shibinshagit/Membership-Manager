@@ -21,6 +21,7 @@ import { postFormDataWithProgress } from '@/lib/upload/post-form-data-with-progr
 import { WARD_SELECT_OPTIONS } from '@/lib/members/ward-numbers';
 import { MembershipYearsPicker } from '@/components/members/membership-years-picker';
 import { currentCalendarYear } from '@/lib/fees-calendar';
+import { normalizePhoneInputValue } from '@/lib/members/normalize-phone';
 
 export default function NewMemberPage() {
   const router = useRouter();
@@ -391,6 +392,9 @@ export default function NewMemberPage() {
                   type="tel"
                   placeholder="+971 50 123 4567"
                   required
+                  onBlur={(e) => {
+                    e.target.value = normalizePhoneInputValue(e.target.value, 'AE');
+                  }}
                 />
               </div>
               <div className="space-y-2">
@@ -401,6 +405,9 @@ export default function NewMemberPage() {
                   type="tel"
                   placeholder="+971 50 123 4567"
                   required
+                  onBlur={(e) => {
+                    e.target.value = normalizePhoneInputValue(e.target.value, 'AE');
+                  }}
                 />
               </div>
             </div>
@@ -557,7 +564,14 @@ export default function NewMemberPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="home_country_contact_number">Home Country Contact Number</Label>
-                <Input id="home_country_contact_number" name="home_country_contact_number" />
+                <Input
+                  id="home_country_contact_number"
+                  name="home_country_contact_number"
+                  placeholder="+91 98765 43210"
+                  onBlur={(e) => {
+                    e.target.value = normalizePhoneInputValue(e.target.value, 'IN');
+                  }}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="spouse_name">Spouse Name</Label>
