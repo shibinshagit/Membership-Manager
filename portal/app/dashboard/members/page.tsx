@@ -378,7 +378,13 @@ export default function MembersPage() {
       if (whatsappGroupFilter === 'added' || whatsappGroupFilter === 'not_added') {
         params.set('whatsapp_group', whatsappGroupFilter);
       }
-      if (dueAmountFilter === '50' || dueAmountFilter === '100' || dueAmountFilter === 'gt200') {
+      if (
+        dueAmountFilter === '50' ||
+        dueAmountFilter === '100' ||
+        dueAmountFilter === '150' ||
+        dueAmountFilter === '200' ||
+        dueAmountFilter === 'gt250'
+      ) {
         params.set('due_amount', dueAmountFilter);
       }
       if (locality) params.set('locality', locality);
@@ -547,10 +553,14 @@ export default function MembersPage() {
       chips.push({ key: 'due', label: 'Due AED 50', clear: () => setDueAmountFilter('all') });
     } else if (dueAmountFilter === '100') {
       chips.push({ key: 'due', label: 'Due AED 100', clear: () => setDueAmountFilter('all') });
-    } else if (dueAmountFilter === 'gt200') {
+    } else if (dueAmountFilter === '150') {
+      chips.push({ key: 'due', label: 'Due AED 150', clear: () => setDueAmountFilter('all') });
+    } else if (dueAmountFilter === '200') {
+      chips.push({ key: 'due', label: 'Due AED 200', clear: () => setDueAmountFilter('all') });
+    } else if (dueAmountFilter === 'gt250') {
       chips.push({
         key: 'due',
-        label: 'Due more than AED 200',
+        label: 'Due more than AED 250',
         clear: () => setDueAmountFilter('all'),
       });
     }
@@ -677,7 +687,13 @@ export default function MembersPage() {
     if (whatsappGroupFilter === 'added' || whatsappGroupFilter === 'not_added') {
       params.set('whatsapp_group', whatsappGroupFilter);
     }
-    if (dueAmountFilter === '50' || dueAmountFilter === '100' || dueAmountFilter === 'gt200') {
+    if (
+      dueAmountFilter === '50' ||
+      dueAmountFilter === '100' ||
+      dueAmountFilter === '150' ||
+      dueAmountFilter === '200' ||
+      dueAmountFilter === 'gt250'
+    ) {
       params.set('due_amount', dueAmountFilter);
     }
     if (locality) params.set('locality', locality);
@@ -771,7 +787,9 @@ export default function MembersPage() {
                   <SelectItem value="all">All Due</SelectItem>
                   <SelectItem value="50">Due AED 50</SelectItem>
                   <SelectItem value="100">Due AED 100</SelectItem>
-                  <SelectItem value="gt200">Due more than AED 200</SelectItem>
+                  <SelectItem value="150">Due AED 150</SelectItem>
+                  <SelectItem value="200">Due AED 200</SelectItem>
+                  <SelectItem value="gt250">Due more than AED 250</SelectItem>
                 </SelectContent>
               </Select>
               <Button

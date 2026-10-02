@@ -75,7 +75,11 @@ export async function GET(request: Request) {
         : null;
     const dueAmountParam = searchParams.get('due_amount');
     const dueAmountFilter =
-      dueAmountParam === '50' || dueAmountParam === '100' || dueAmountParam === 'gt200'
+      dueAmountParam === '50' ||
+      dueAmountParam === '100' ||
+      dueAmountParam === '150' ||
+      dueAmountParam === '200' ||
+      dueAmountParam === 'gt250'
         ? dueAmountParam
         : null;
     const executiveIdInt = executiveId ? Number.parseInt(executiveId, 10) : null;
@@ -148,13 +152,31 @@ export async function GET(request: Request) {
                 ), 0) = 100
               )
               OR (
-                ${dueAmountFilter} = 'gt200'
+                ${dueAmountFilter} = '150'
                 AND COALESCE((
                   SELECT SUM(mm.amount)::numeric
                   FROM member_memberships mm
                   WHERE mm.member_id = m.id
                     AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
-                ), 0) > 200
+                ), 0) = 150
+              )
+              OR (
+                ${dueAmountFilter} = '200'
+                AND COALESCE((
+                  SELECT SUM(mm.amount)::numeric
+                  FROM member_memberships mm
+                  WHERE mm.member_id = m.id
+                    AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                ), 0) = 200
+              )
+              OR (
+                ${dueAmountFilter} = 'gt250'
+                AND COALESCE((
+                  SELECT SUM(mm.amount)::numeric
+                  FROM member_memberships mm
+                  WHERE mm.member_id = m.id
+                    AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                ), 0) > 250
               )
             )
             AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_member_id = ${executiveIdInt})
@@ -239,13 +261,31 @@ export async function GET(request: Request) {
                 ), 0) = 100
               )
               OR (
-                ${dueAmountFilter} = 'gt200'
+                ${dueAmountFilter} = '150'
                 AND COALESCE((
                   SELECT SUM(mm.amount)::numeric
                   FROM member_memberships mm
                   WHERE mm.member_id = m.id
                     AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
-                ), 0) > 200
+                ), 0) = 150
+              )
+              OR (
+                ${dueAmountFilter} = '200'
+                AND COALESCE((
+                  SELECT SUM(mm.amount)::numeric
+                  FROM member_memberships mm
+                  WHERE mm.member_id = m.id
+                    AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                ), 0) = 200
+              )
+              OR (
+                ${dueAmountFilter} = 'gt250'
+                AND COALESCE((
+                  SELECT SUM(mm.amount)::numeric
+                  FROM member_memberships mm
+                  WHERE mm.member_id = m.id
+                    AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                ), 0) > 250
               )
             )
             AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_id = ${executiveIdInt})
@@ -358,13 +398,31 @@ export async function GET(request: Request) {
                     ), 0) = 100
                   )
                   OR (
-                    ${dueAmountFilter} = 'gt200'
+                    ${dueAmountFilter} = '150'
                     AND COALESCE((
                       SELECT SUM(mm.amount)::numeric
                       FROM member_memberships mm
                       WHERE mm.member_id = m.id
                         AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
-                    ), 0) > 200
+                    ), 0) = 150
+                  )
+                  OR (
+                    ${dueAmountFilter} = '200'
+                    AND COALESCE((
+                      SELECT SUM(mm.amount)::numeric
+                      FROM member_memberships mm
+                      WHERE mm.member_id = m.id
+                        AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                    ), 0) = 200
+                  )
+                  OR (
+                    ${dueAmountFilter} = 'gt250'
+                    AND COALESCE((
+                      SELECT SUM(mm.amount)::numeric
+                      FROM member_memberships mm
+                      WHERE mm.member_id = m.id
+                        AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                    ), 0) > 250
                   )
                 )
                 AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_member_id = ${executiveIdInt})
@@ -473,13 +531,31 @@ export async function GET(request: Request) {
                     ), 0) = 100
                   )
                   OR (
-                    ${dueAmountFilter} = 'gt200'
+                    ${dueAmountFilter} = '150'
                     AND COALESCE((
                       SELECT SUM(mm.amount)::numeric
                       FROM member_memberships mm
                       WHERE mm.member_id = m.id
                         AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
-                    ), 0) > 200
+                    ), 0) = 150
+                  )
+                  OR (
+                    ${dueAmountFilter} = '200'
+                    AND COALESCE((
+                      SELECT SUM(mm.amount)::numeric
+                      FROM member_memberships mm
+                      WHERE mm.member_id = m.id
+                        AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                    ), 0) = 200
+                  )
+                  OR (
+                    ${dueAmountFilter} = 'gt250'
+                    AND COALESCE((
+                      SELECT SUM(mm.amount)::numeric
+                      FROM member_memberships mm
+                      WHERE mm.member_id = m.id
+                        AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                    ), 0) > 250
                   )
                 )
                 AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_id = ${executiveIdInt})
@@ -589,13 +665,31 @@ export async function GET(request: Request) {
                   ), 0) = 100
                 )
                 OR (
-                  ${dueAmountFilter} = 'gt200'
+                  ${dueAmountFilter} = '150'
                   AND COALESCE((
                     SELECT SUM(mm.amount)::numeric
                     FROM member_memberships mm
                     WHERE mm.member_id = m.id
                       AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
-                  ), 0) > 200
+                  ), 0) = 150
+                )
+                OR (
+                  ${dueAmountFilter} = '200'
+                  AND COALESCE((
+                    SELECT SUM(mm.amount)::numeric
+                    FROM member_memberships mm
+                    WHERE mm.member_id = m.id
+                      AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                  ), 0) = 200
+                )
+                OR (
+                  ${dueAmountFilter} = 'gt250'
+                  AND COALESCE((
+                    SELECT SUM(mm.amount)::numeric
+                    FROM member_memberships mm
+                    WHERE mm.member_id = m.id
+                      AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                  ), 0) > 250
                 )
               )
               AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_member_id = ${executiveIdInt})
@@ -705,13 +799,31 @@ export async function GET(request: Request) {
                   ), 0) = 100
                 )
                 OR (
-                  ${dueAmountFilter} = 'gt200'
+                  ${dueAmountFilter} = '150'
                   AND COALESCE((
                     SELECT SUM(mm.amount)::numeric
                     FROM member_memberships mm
                     WHERE mm.member_id = m.id
                       AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
-                  ), 0) > 200
+                  ), 0) = 150
+                )
+                OR (
+                  ${dueAmountFilter} = '200'
+                  AND COALESCE((
+                    SELECT SUM(mm.amount)::numeric
+                    FROM member_memberships mm
+                    WHERE mm.member_id = m.id
+                      AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                  ), 0) = 200
+                )
+                OR (
+                  ${dueAmountFilter} = 'gt250'
+                  AND COALESCE((
+                    SELECT SUM(mm.amount)::numeric
+                    FROM member_memberships mm
+                    WHERE mm.member_id = m.id
+                      AND COALESCE(mm.payment_status, 'unpaid') <> 'paid'
+                  ), 0) > 250
                 )
               )
               AND (${executiveIdInt}::int IS NULL OR m.assigned_executive_id = ${executiveIdInt})
