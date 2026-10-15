@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { getCurrentUser, canManageAllMembers } from '@/lib/auth';
+import { getCurrentUser, canManageAllMembers, userHasAdminRead, userHasAdminWrite } from '@/lib/auth';
 import {
   annualPeriod,
   normalizeJoinYear,
@@ -50,7 +50,7 @@ export async function GET(request: Request) {
   try {
     await ensureExtendedMemberProfileColumns();
     const hasExecutiveMemberColumn = await ensureAssignedExecutiveMemberColumn();
-    const isAdmin = canManageAllMembers(user.role);
+    const isAdmin = userHasAdminRead(user, 'members');
     const searchPattern = search ? `%${search}%` : null;
     const localityPattern = locality ? `%${locality}%` : null;
     const normalizedStatus = status && status !== 'all' ? status : null;
@@ -921,7 +921,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
-  if (!user) {
+  if (!user || !userHasAdminWrite(user, 'members')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

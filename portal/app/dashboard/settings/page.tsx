@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { UserRound, KeyRound, Building2, ShieldCheck, Database, Trash2, Upload } from 'lucide-react'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { IconTile } from '@/components/icons/icon-tile'
+import { UsersManagement } from '@/components/settings/users-management'
 
 interface UserProfile {
   id: string
@@ -100,7 +101,7 @@ export default function SettingsPage() {
 
     try {
       const res = await fetch(`/api/users/${user?.id}`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       })
@@ -136,7 +137,7 @@ export default function SettingsPage() {
 
     try {
       const res = await fetch(`/api/users/${user?.id}`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           current_password: passwordData.current_password,
@@ -297,12 +298,20 @@ export default function SettingsPage() {
               </Badge>
               <span className="text-sm text-muted-foreground">
                 {user?.role === 'super_admin' && 'Full access to all features and settings'}
-                {user?.role === 'admin' && 'Can manage members, fees, and documents'}
+                {user?.role === 'editor' &&
+                  'Can view selected pages and add/edit where granted'}
+                {user?.role === 'viewer' && 'View-only access to selected pages — no editing'}
+                {user?.role === 'president' && 'Can manage members, fees, and organization'}
+                {user?.role === 'secretary' && 'Can manage members, fees, and organization'}
                 {user?.role === 'executive' && 'Can view and manage assigned members only'}
               </span>
             </div>
           </CardContent>
         </Card>
+
+        {user?.role === 'super_admin' && user.id ? (
+          <UsersManagement currentUserId={Number(user.id)} />
+        ) : null}
 
         {user?.role === 'super_admin' && (
           <Card>

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { canManageAllMembers, getCurrentUser } from '@/lib/auth';
+import { getCurrentUser, userHasAdminWrite } from '@/lib/auth';
 import { ensureCommitteeTables } from '@/lib/db/compat';
 
 function parseCommitteeId(value: string): number | null {
@@ -10,7 +10,7 @@ function parseCommitteeId(value: string): number | null {
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
-  if (!user || !canManageAllMembers(user.role)) {
+  if (!user || !userHasAdminWrite(user, 'committee')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -66,7 +66,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
-  if (!user || !canManageAllMembers(user.role)) {
+  if (!user || !userHasAdminWrite(user, 'committee')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

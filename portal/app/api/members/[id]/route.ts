@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { getCurrentUser, canManageAllMembers } from '@/lib/auth';
+import { getCurrentUser, canManageAllMembers, userHasAdminRead, userHasAdminWrite } from '@/lib/auth';
 import { resolveMemberIdForUpdate } from '@/lib/members/resolve-member-id';
 import { validateAdminMemberFields } from '@/lib/members/admin-member-validation';
 import { parseWardNo } from '@/lib/members/ward-numbers';
@@ -106,7 +106,7 @@ export async function GET(
     await ensureWelfareColumns();
     await ensureWhatsAppGroupColumn();
     const hasExecutiveMemberColumn = await ensureAssignedExecutiveMemberColumn();
-    const isAdmin = canManageAllMembers(user.role);
+    const isAdmin = userHasAdminRead(user, 'members');
 
     const members = hasExecutiveMemberColumn
       ? isAdmin
@@ -288,7 +288,7 @@ export async function PUT(
     } = body;
 
     // Check permission
-    const isAdmin = canManageAllMembers(user.role);
+    const isAdmin = userHasAdminWrite(user, 'members');
 
     // Get current member
     const currentMember = isAdmin
@@ -568,7 +568,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const user = await getCurrentUser();
-  if (!user || !canManageAllMembers(user.role)) {
+  if (!user || !userHasAdminWrite(user, 'members')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

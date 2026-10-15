@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { getCurrentUser, canManageAllMembers } from '@/lib/auth';
+import { getCurrentUser, userHasAdminWrite } from '@/lib/auth';
 import { ensureWhatsAppGroupColumn } from '@/lib/db/compat';
 
 const ALLOWED_STATUSES = new Set(['active', 'inactive', 'pending', 'suspended', 'expired']);
 
 export async function PATCH(request: Request) {
   const user = await getCurrentUser();
-  if (!user || !canManageAllMembers(user.role)) {
+  if (!user || !userHasAdminWrite(user, 'members')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

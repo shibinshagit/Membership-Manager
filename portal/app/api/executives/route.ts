@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { getCurrentUser, canManageAllMembers } from '@/lib/auth';
+import { getCurrentUser, canManageAllMembers, canReadPrivilegedPage, userHasAdminWrite } from '@/lib/auth';
 import { ensureAssignedExecutiveMemberColumn } from '@/lib/db/compat';
 
 // Get role-based member list for assignment/list pages
 export async function GET(request: Request) {
   const user = await getCurrentUser();
-  if (!user || !canManageAllMembers(user.role)) {
+  if (!user || !canReadPrivilegedPage(user, 'executives')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

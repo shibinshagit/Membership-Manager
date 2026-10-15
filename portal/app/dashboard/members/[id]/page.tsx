@@ -82,6 +82,7 @@ import {
 } from '@/lib/fees-calendar';
 import { normalizeWhatsAppPhone, normalizePhoneInputValue } from '@/lib/members/normalize-phone';
 import { displayMemberPhone } from '@/lib/members/phone-canonical';
+import { WriteOnly } from '@/components/auth/write-only';
 
 interface Member {
   id: number;
@@ -773,50 +774,52 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
             <p className="text-muted-foreground mt-1 font-mono truncate">{member.member_id}</p>
           </div>
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          {editing ? (
-            <>
-              <Button variant="outline" onClick={() => { setEditing(false); setFormData(member); }}>
-                <X className="w-4 h-4 mr-2" />
-                Cancel
-              </Button>
-              <Button onClick={handleSave} disabled={saving}>
-                {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                Save
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button variant="outline" onClick={() => setEditing(true)}>
-                <Edit className="w-4 h-4 mr-2" />
-                Edit
-              </Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive">
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Delete
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete Member?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will permanently delete {member.full_name} and all associated documents and fees.
-                      This action cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                      {deleting ? 'Deleting...' : 'Delete'}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </>
-          )}
-        </div>
+        <WriteOnly page="members">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {editing ? (
+              <>
+                <Button variant="outline" onClick={() => { setEditing(false); setFormData(member); }}>
+                  <X className="w-4 h-4 mr-2" />
+                  Cancel
+                </Button>
+                <Button onClick={handleSave} disabled={saving}>
+                  {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                  Save
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setEditing(true)}>
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive">
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Member?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently delete {member.full_name} and all associated documents and fees.
+                        This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDelete} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        {deleting ? 'Deleting...' : 'Delete'}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </>
+            )}
+          </div>
+        </WriteOnly>
       </div>
 
       {error && (

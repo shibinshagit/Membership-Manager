@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getCurrentUser, canManageAllMembers } from '@/lib/auth';
+import { getCurrentUser, canReadPrivilegedPage } from '@/lib/auth';
 import { ensureAccountsTables } from '@/lib/db/compat';
 import { getAccountsSummary } from '@/lib/accounts-service';
 import { currentCalendarYear, ORG_START_YEAR } from '@/lib/fees-calendar';
 
 export async function GET(request: Request) {
   const user = await getCurrentUser();
-  if (!user || !canManageAllMembers(user.role)) {
+  if (!user || !canReadPrivilegedPage(user, 'accounts')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

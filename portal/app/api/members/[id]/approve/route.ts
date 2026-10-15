@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { getCurrentUser, canManageAllMembers } from '@/lib/auth';
+import { getCurrentUser, userHasAdminWrite } from '@/lib/auth';
 import {
   normalizeJoinYear,
   parsePaidYears,
@@ -14,7 +14,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const user = await getCurrentUser();
-  if (!user || !canManageAllMembers(user.role)) {
+  if (!user || !userHasAdminWrite(user, 'members')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

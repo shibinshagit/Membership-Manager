@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { getCurrentUser, canManageAllMembers } from '@/lib/auth';
+import { getCurrentUser, userHasAdminWrite } from '@/lib/auth';
 import { ensureAccountsTables } from '@/lib/db/compat';
 
 function normalizeCategory(value: unknown): string {
@@ -11,7 +11,7 @@ function normalizeCategory(value: unknown): string {
 
 export async function PATCH(request: Request) {
   const user = await getCurrentUser();
-  if (!user || !canManageAllMembers(user.role)) {
+  if (!user || !userHasAdminWrite(user, 'accounts')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

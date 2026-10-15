@@ -39,6 +39,27 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
+  // Viewers are read-only: block mutating API calls (self profile update still allowed).
+  if (
+    hasValidSession &&
+    session.role === 'viewer' &&
+    pathname.startsWith('/api/') &&
+    ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)
+  ) {
+    const isLogout = pathname === '/api/auth/logout';
+    const isSelfUserUpdate =
+      (request.method === 'PUT' || request.method === 'PATCH') &&
+      pathname.startsWith('/api/users/') &&
+      pathname === `/api/users/${session.userId}`;
+
+    if (!isLogout && !isSelfUserUpdate) {
+      return NextResponse.json(
+        { error: 'View-only account. Editing is not allowed.' },
+        { status: 403 }
+      );
+    }
+  }
+
   if (hasStaleSessionCookie) {
     return clearSessionCookie(NextResponse.next());
   }

@@ -147,17 +147,18 @@ export default function NewUserPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="role">Role *</Label>
-              <Select name="role" defaultValue="executive" required>
+              <Select name="role" defaultValue="viewer" required>
                 <SelectTrigger>
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="executive">Executive</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="viewer">Viewer (view only)</SelectItem>
+                  <SelectItem value="editor">Editor (add & edit)</SelectItem>
+                  <SelectItem value="super_admin">Super admin (full access)</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Executives can manage assigned members. Admins can manage all members and users.
+                Prefer Settings → Manage users to set page and edit permissions.
               </p>
             </div>
           </CardContent>

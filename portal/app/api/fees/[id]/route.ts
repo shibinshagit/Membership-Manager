@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { getCurrentUser, canManageAllMembers } from '@/lib/auth';
+import { getCurrentUser, canManageAllMembers, userHasAdminRead, userHasAdminWrite } from '@/lib/auth';
 import {
   reconcileMemberStatusesByPayment,
   resolveFeePlanOrThrow,
@@ -22,7 +22,7 @@ export async function GET(
 
   try {
     await ensureMemberMembershipsTable();
-    const isAdmin = canManageAllMembers(user.role);
+    const isAdmin = userHasAdminRead(user, 'fees');
 
     const fee = isAdmin
       ? await sql`
@@ -62,7 +62,7 @@ export async function PUT(
 
   try {
     await ensureMemberMembershipsTable();
-    const isAdmin = canManageAllMembers(user.role);
+    const isAdmin = userHasAdminWrite(user, 'fees');
 
     const body = await request.json();
     const {
@@ -173,7 +173,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const user = await getCurrentUser();
-  if (!user || !canManageAllMembers(user.role)) {
+  if (!user || !userHasAdminWrite(user, 'fees')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { getCurrentUser, canManageAllMembers } from '@/lib/auth';
+import { getCurrentUser, canManageAllMembers, userHasAdminRead, userHasAdminWrite } from '@/lib/auth';
 import {
   annualPeriod,
   reconcileMemberStatusesByPayment,
@@ -21,7 +21,7 @@ export async function GET(request: Request) {
 
   try {
     await ensureMemberMembershipsTable();
-    const isAdmin = canManageAllMembers(user.role);
+    const isAdmin = userHasAdminRead(user, 'fees');
 
     const memberIdInt = memberId ? Number.parseInt(memberId, 10) : null;
     const statusList =
@@ -99,7 +99,7 @@ export async function POST(request: Request) {
     }
 
     // Verify member exists
-    const isAdmin = canManageAllMembers(user.role);
+    const isAdmin = userHasAdminWrite(user, 'fees');
     const member = isAdmin
       ? await sql`SELECT id, joined_date FROM members WHERE id = ${member_id}`
       : await sql`SELECT id, joined_date FROM members WHERE id = ${member_id} AND assigned_executive_id = ${user.id}`;

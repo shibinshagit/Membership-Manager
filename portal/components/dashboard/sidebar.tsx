@@ -22,12 +22,15 @@ import {
   DEFAULT_CENTRAL_COMMITTEE_ROLE,
 } from '@/lib/members/central-committee-roles';
 
+import { usePermissionsOptional } from '@/components/auth/permissions-provider';
+import { navHrefToPageKey, type AppPageKey } from '@/lib/auth/permissions';
+
 interface User {
   id: number;
   username: string;
   email: string;
   full_name: string;
-  role: 'super_admin' | 'president' | 'secretary' | 'central_committee' | 'executive' | 'member';
+  role: string;
 }
 
 type NavChild = {
@@ -41,6 +44,8 @@ type NavItem = {
   href: string;
   icon: LucideIcon;
   exact?: boolean;
+  /** Page key used for per-user access; falls back to path mapping. */
+  pageKey?: AppPageKey;
   adminOnly?: boolean;
   children?: NavChild[];
 };
@@ -54,16 +59,37 @@ const navGroups: Array<{ label: string; items: NavItem[] }> = [
         href: '/dashboard',
         icon: DASHBOARD_NAV_ICONS.dashboard,
         exact: true,
+        pageKey: 'dashboard',
       },
     ],
   },
   {
     label: 'Membership',
     items: [
-      { name: 'Members', href: '/dashboard/members', icon: DASHBOARD_NAV_ICONS.members },
-      { name: 'Documents', href: '/dashboard/documents', icon: DASHBOARD_NAV_ICONS.documents },
-      { name: 'Fees & Payments', href: '/dashboard/fees', icon: DASHBOARD_NAV_ICONS.fees },
-      { name: 'Accounts', href: '/dashboard/accounts', icon: DASHBOARD_NAV_ICONS.accounts, adminOnly: true },
+      {
+        name: 'Members',
+        href: '/dashboard/members',
+        icon: DASHBOARD_NAV_ICONS.members,
+        pageKey: 'members',
+      },
+      {
+        name: 'Documents',
+        href: '/dashboard/documents',
+        icon: DASHBOARD_NAV_ICONS.documents,
+        pageKey: 'documents',
+      },
+      {
+        name: 'Fees & Payments',
+        href: '/dashboard/fees',
+        icon: DASHBOARD_NAV_ICONS.fees,
+        pageKey: 'fees',
+      },
+      {
+        name: 'Accounts',
+        href: '/dashboard/accounts',
+        icon: DASHBOARD_NAV_ICONS.accounts,
+        pageKey: 'accounts',
+      },
     ],
   },
   {
@@ -73,7 +99,7 @@ const navGroups: Array<{ label: string; items: NavItem[] }> = [
         name: 'Central Committee',
         href: `/dashboard/executives?role=${DEFAULT_CENTRAL_COMMITTEE_ROLE}`,
         icon: DASHBOARD_NAV_ICONS.centralCommittee,
-        adminOnly: true,
+        pageKey: 'executives',
         children: CENTRAL_COMMITTEE_ROLES.map((role) => ({
           name: role.label,
           href: `/dashboard/executives?role=${role.value}`,
@@ -84,7 +110,7 @@ const navGroups: Array<{ label: string; items: NavItem[] }> = [
         name: 'Committee',
         href: '/dashboard/committee',
         icon: DASHBOARD_NAV_ICONS.committee,
-        adminOnly: true,
+        pageKey: 'committee',
       },
     ],
   },
@@ -95,7 +121,7 @@ const navGroups: Array<{ label: string; items: NavItem[] }> = [
         name: 'Settings',
         href: '/dashboard/settings',
         icon: DASHBOARD_NAV_ICONS.settings,
-        adminOnly: true,
+        pageKey: 'settings',
       },
     ],
   },
@@ -126,22 +152,32 @@ export function DashboardSidebar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
+  const permissions = usePermissionsOptional();
+  const [user, setUser] = useState<User | null>(permissions?.user ?? null);
+  const [allowedPages, setAllowedPages] = useState<AppPageKey[] | null>(
+    permissions?.pages ?? null
+  );
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
+    if (permissions?.user) {
+      setUser(permissions.user);
+      setAllowedPages(permissions.pages);
+      return;
+    }
     fetch('/api/auth/me')
       .then((res) => res.json())
       .then((data) => {
         if (data.user) {
           setUser(data.user);
+          setAllowedPages(data.permissions?.pages ?? null);
         } else {
           router.push('/login');
         }
       })
       .catch(() => router.push('/login'));
-  }, [router]);
+  }, [router, permissions]);
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -167,14 +203,21 @@ export function DashboardSidebar() {
     router.refresh();
   };
 
-  const isAdmin = Boolean(
-    user && ['super_admin', 'president', 'secretary'].includes(user.role)
-  );
+  const canSeeItem = (item: NavItem) => {
+    const key = item.pageKey || navHrefToPageKey(item.href);
+    if (!key) return true;
+    if (allowedPages) return allowedPages.includes(key);
+    // Before permissions load: keep legacy admin-only behaviour
+    if (item.adminOnly) {
+      return Boolean(user && ['super_admin', 'president', 'secretary'].includes(user.role));
+    }
+    return true;
+  };
 
   const visibleGroups = navGroups
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => !item.adminOnly || isAdmin),
+      items: group.items.filter((item) => canSeeItem(item)),
     }))
     .filter((group) => group.items.length > 0);
 
@@ -385,7 +428,12 @@ export function DashboardSidebar() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {isAdmin && (
+              {canSeeItem({
+                name: 'Settings',
+                href: '/dashboard/settings',
+                icon: Settings2,
+                pageKey: 'settings',
+              }) && (
                 <>
                   <DropdownMenuItem asChild>
                     <Link href="/dashboard/settings">

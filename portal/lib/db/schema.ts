@@ -7,8 +7,10 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(255) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   full_name VARCHAR(255) NOT NULL,
-  role VARCHAR(50) NOT NULL CHECK (role IN ('super_admin', 'president', 'secretary', 'central_committee', 'executive', 'member')),
+  role VARCHAR(50) NOT NULL CHECK (role IN ('super_admin', 'editor', 'viewer', 'president', 'secretary', 'central_committee', 'executive', 'member')),
   phone VARCHAR(20),
+  allowed_pages JSONB,
+  writable_pages JSONB,
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

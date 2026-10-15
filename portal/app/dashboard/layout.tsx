@@ -1,7 +1,16 @@
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
-import { getCurrentUser } from '@/lib/auth';
+import {
+  getCurrentUser,
+  userAllowedPages,
+  userWritablePages,
+  userCanWrite,
+  canManageUsers,
+} from '@/lib/auth';
 import { DashboardSidebar } from '@/components/dashboard/sidebar';
+import { MainShell } from '@/components/dashboard/main-shell';
+import { PermissionsProvider } from '@/components/auth/permissions-provider';
+import { PageAccessGuard } from '@/components/auth/page-access-guard';
 
 export default async function DashboardLayout({
   children,
@@ -14,14 +23,25 @@ export default async function DashboardLayout({
     redirect('/login');
   }
 
+  const pages = userAllowedPages(user);
+  const writablePages = userWritablePages(user);
+
   return (
-    <div className="min-h-screen flex bg-muted/30">
-      <Suspense fallback={<div className="hidden w-[17.5rem] shrink-0 lg:block" />}>
-        <DashboardSidebar />
-      </Suspense>
-      <main className="flex-1 min-w-0 lg:pl-0 pt-14 lg:pt-0">
-        <div className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8">{children}</div>
-      </main>
-    </div>
+    <PermissionsProvider
+      user={user}
+      canWrite={userCanWrite(user)}
+      canManageUsers={canManageUsers(user.role)}
+      pages={pages}
+      writablePages={writablePages}
+    >
+      <div className="flex h-svh overflow-hidden">
+        <Suspense fallback={<div className="hidden w-[17.5rem] shrink-0 lg:block" />}>
+          <DashboardSidebar />
+        </Suspense>
+        <MainShell>
+          <PageAccessGuard>{children}</PageAccessGuard>
+        </MainShell>
+      </div>
+    </PermissionsProvider>
   );
 }

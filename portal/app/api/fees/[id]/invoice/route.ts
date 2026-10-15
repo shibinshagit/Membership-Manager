@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { getCurrentUser, canManageAllMembers } from '@/lib/auth';
+import { getCurrentUser, canManageAllMembers, userHasAdminRead, userHasAdminWrite } from '@/lib/auth';
 import { buildMembershipInvoicePdf } from '@/lib/fees/invoice-pdf';
 import { ensureMemberMembershipsTable } from '@/lib/db/compat';
 
@@ -21,7 +21,7 @@ export async function GET(
 
   try {
     await ensureMemberMembershipsTable();
-    const isAdmin = canManageAllMembers(user.role);
+    const isAdmin = userHasAdminRead(user, 'fees');
 
     const rows = isAdmin
       ? await sql`

@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { canManageAllMembers, getCurrentUser } from '@/lib/auth';
+import { canReadPrivilegedPage, getCurrentUser, userHasAdminWrite } from '@/lib/auth';
 import { ensureCommitteeTables } from '@/lib/db/compat';
 
 export async function GET() {
   const user = await getCurrentUser();
-  if (!user || !canManageAllMembers(user.role)) {
+  if (!user || !canReadPrivilegedPage(user, 'committee')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -61,7 +61,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
-  if (!user || !canManageAllMembers(user.role)) {
+  if (!user || !userHasAdminWrite(user, 'committee')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

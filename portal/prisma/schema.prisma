@@ -9,6 +9,8 @@ datasource db {
 
 enum UserRole {
   super_admin
+  editor
+  viewer
   president
   secretary
   central_committee
@@ -52,9 +54,11 @@ model User {
   email       String     @unique @db.VarChar(255)
   passwordHash String    @map("password_hash") @db.VarChar(255)
   fullName    String     @map("full_name") @db.VarChar(255)
-  role        UserRole
-  phone       String?    @db.VarChar(20)
-  isActive    Boolean    @default(true) @map("is_active")
+  role           UserRole
+  phone          String?   @db.VarChar(20)
+  allowedPages   Json?     @map("allowed_pages") @db.JsonB
+  writablePages  Json?     @map("writable_pages") @db.JsonB
+  isActive       Boolean   @default(true) @map("is_active")
   createdAt   DateTime   @default(now()) @map("created_at")
   updatedAt   DateTime   @default(now()) @map("updated_at")
 

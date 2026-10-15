@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { getCurrentUser, canManageAllMembers } from '@/lib/auth';
+import { getCurrentUser, userHasAdminWrite } from '@/lib/auth';
 import { ensureAccountsTables } from '@/lib/db/compat';
 import { normalizeEntryYear } from '@/lib/accounts-service';
 import { currentCalendarYear } from '@/lib/fees-calendar';
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
-  if (!user || !canManageAllMembers(user.role)) {
+  if (!user || !userHasAdminWrite(user, 'accounts')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

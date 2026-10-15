@@ -7,6 +7,33 @@ let committeeTablesEnsured = false;
 let visaDocumentTypeEnsured = false;
 let welfareColumnsEnsured = false;
 let whatsappGroupColumnEnsured = false;
+let usersPermissionsSchemaEnsured = false;
+
+/** Add viewer/editor roles + page permission columns for portal user management. */
+export async function ensureUsersPermissionsSchema(): Promise<void> {
+  // Always ensure columns exist (safe IF NOT EXISTS) even if role constraint already migrated.
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS allowed_pages JSONB`;
+  await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS writable_pages JSONB`;
+
+  if (usersPermissionsSchemaEnsured) return;
+
+  await sql`ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check`;
+  await sql`
+    ALTER TABLE users ADD CONSTRAINT users_role_check
+    CHECK (role IN (
+      'super_admin',
+      'editor',
+      'viewer',
+      'president',
+      'secretary',
+      'central_committee',
+      'executive',
+      'member'
+    ))
+  `;
+
+  usersPermissionsSchemaEnsured = true;
+}
 
 export async function hasAssignedExecutiveMemberColumn(): Promise<boolean> {
   if (hasAssignedExecutiveMemberColumnCache !== null) {

@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { compare } from 'bcryptjs';
 import { sql } from '@/lib/db';
-import { createSession, User } from '@/lib/auth';
+import { createSession, mapUserRow } from '@/lib/auth';
+import { ensureUsersPermissionsSchema } from '@/lib/db/compat';
 
 export async function POST(request: Request) {
   try {
@@ -14,9 +15,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // Find user by username or email
+    await ensureUsersPermissionsSchema();
+
     const users = await sql`
-      SELECT id, username, email, password_hash, full_name, role, phone, is_active
+      SELECT id, username, email, password_hash, full_name, role, phone, is_active, allowed_pages, writable_pages
       FROM users
       WHERE (username = ${username} OR email = ${username}) AND is_active = true
     `;
@@ -28,10 +30,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const user = users[0] as User & { password_hash: string };
-
-    // Verify password
-    const isValid = await compare(password, user.password_hash);
+    const row = users[0] as Record<string, unknown> & { password_hash: string };
+    const isValid = await compare(password, row.password_hash);
     if (!isValid) {
       return NextResponse.json(
         { error: 'Invalid credentials' },
@@ -39,16 +39,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create session
-    await createSession({
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      full_name: user.full_name,
-      role: user.role,
-      phone: user.phone,
-      is_active: user.is_active,
-    });
+    const user = mapUserRow(row);
+    await createSession(user);
 
     return NextResponse.json({
       success: true,

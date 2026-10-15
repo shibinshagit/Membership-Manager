@@ -29,9 +29,13 @@ import {
   CheckCheck,
   Search,
   ListFilter,
+  BadgeCheck,
+  CircleDollarSign,
+  CircleAlert,
+  FolderOpen,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { PageHeader, FilterBar } from '@/components/dashboard/page-header';
+import { PageHeader, FilterBar, StatCard } from '@/components/dashboard/page-header';
 import {
   DataList,
   DataListCard,
@@ -58,6 +62,7 @@ import {
 import { MembershipYearsPicker } from '@/components/members/membership-years-picker';
 import { WelfareBadge } from '@/components/members/welfare-badge';
 import { WhatsAppGroupBadge } from '@/components/members/whatsapp-group-badge';
+import { WriteOnly } from '@/components/auth/write-only';
 import { currentCalendarYear, ORG_START_YEAR } from '@/lib/fees-calendar';
 import { normalizeWhatsAppPhone } from '@/lib/members/normalize-phone';
 import { displayMemberPhone } from '@/lib/members/phone-canonical';
@@ -257,6 +262,16 @@ export default function MembersPage() {
   const [approveLifetimeStartDate, setApproveLifetimeStartDate] = useState(
     () => new Date().toISOString().slice(0, 10)
   );
+  const [overview, setOverview] = useState<{
+    members: { total: number; active: number; expired: number };
+    fees: {
+      pending_amount: number;
+      overdue_amount: number;
+      overdue_count: number;
+      pending_count: number;
+    };
+    documents: { total: number };
+  } | null>(null);
 
   const limit = 20;
   const joinYearOptions = useMemo(() => {
@@ -275,6 +290,24 @@ export default function MembersPage() {
   useEffect(() => {
     setRegistrationUrl(`${window.location.origin}/register`);
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadOverview() {
+      try {
+        const res = await fetch('/api/dashboard/overview');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) setOverview(data);
+      } catch {
+        /* ignore */
+      }
+    }
+    loadOverview();
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadToken]);
 
   const copyRegistrationLink = async () => {
     try {
@@ -701,8 +734,56 @@ export default function MembersPage() {
     window.location.href = `/api/members?${params.toString()}`;
   };
 
+  const overviewCards = overview
+    ? [
+        {
+          title: 'Total Members',
+          value: overview.members.total,
+          description: `${overview.members.active} active`,
+          icon: UsersRound,
+          href: '/dashboard/members',
+        },
+        {
+          title: 'Active Members',
+          value: overview.members.active,
+          description: `${overview.members.expired} expired`,
+          icon: BadgeCheck,
+          href: '/dashboard/members?status=active',
+        },
+        {
+          title: 'Pending Fees',
+          value: `AED ${Number(overview.fees.pending_amount).toLocaleString()}`,
+          description: `${overview.fees.pending_count} pending payments`,
+          icon: CircleDollarSign,
+          href: '/dashboard/fees?status=unpaid',
+        },
+        {
+          title: 'Overdue Payments',
+          value: overview.fees.overdue_count,
+          description: `AED ${Number(overview.fees.overdue_amount).toLocaleString()} overdue`,
+          icon: CircleAlert,
+          href: '/dashboard/fees?status=overdue',
+        },
+        {
+          title: 'Documents',
+          value: overview.documents.total,
+          description: 'Total uploaded',
+          icon: FolderOpen,
+          href: '/dashboard/documents',
+        },
+      ]
+    : null;
+
   return (
     <div className="space-y-6">
+      {overviewCards ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          {overviewCards.map((stat) => (
+            <StatCard key={stat.title} {...stat} />
+          ))}
+        </div>
+      ) : null}
+
       <PageHeader
         title="Members"
         description="Manage your membership database"
@@ -717,12 +798,14 @@ export default function MembersPage() {
                 Review Pending
               </Button>
             )}
-            <Button asChild>
-              <Link href="/dashboard/members/new">
-                <AppIcon icon={Plus} className="h-4 w-4" />
-                Add Member
-              </Link>
-            </Button>
+            <WriteOnly page="members">
+              <Button asChild>
+                <Link href="/dashboard/members/new">
+                  <AppIcon icon={Plus} className="h-4 w-4" />
+                  Add Member
+                </Link>
+              </Button>
+            </WriteOnly>
           </>
         }
       />
@@ -1113,12 +1196,14 @@ export default function MembersPage() {
               visaStatus === 'all' &&
               maritalStatus === 'all' &&
               !locality ? (
-                <Button asChild>
-                  <Link href="/dashboard/members/new">
-                    <AppIcon icon={Plus} className="h-4 w-4" />
-                    Add Member
-                  </Link>
-                </Button>
+                <WriteOnly page="members">
+                  <Button asChild>
+                    <Link href="/dashboard/members/new">
+                      <AppIcon icon={Plus} className="h-4 w-4" />
+                      Add Member
+                    </Link>
+                  </Button>
+                </WriteOnly>
               ) : status === 'pending' ? (
                 <Button variant="outline" onClick={showAllMembers}>
                   Show All Members

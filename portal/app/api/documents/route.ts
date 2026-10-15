@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
-import { getCurrentUser, canManageAllMembers } from '@/lib/auth';
+import { getCurrentUser, canManageAllMembers, userHasAdminRead, userHasAdminWrite } from '@/lib/auth';
 import { deleteDocumentBlob } from '@/lib/documents/blob-store';
 import { storeMemberDocument } from '@/lib/documents/store-document';
 
@@ -17,7 +17,7 @@ export async function GET(request: Request) {
   const documentType = searchParams.get('type');
 
   try {
-    const isAdmin = canManageAllMembers(user.role);
+    const isAdmin = userHasAdminRead(user, 'documents');
 
     const memberIdInt = memberId ? Number.parseInt(memberId, 10) : null;
     const normalizedType = documentType && documentType !== 'all' ? documentType : null;
@@ -69,7 +69,7 @@ export async function POST(request: Request) {
     }
 
     // Verify member exists and user has access
-    const isAdmin = canManageAllMembers(user.role);
+    const isAdmin = userHasAdminWrite(user, 'documents');
     const member = isAdmin
       ? await sql`SELECT id FROM members WHERE id = ${memberId}`
       : await sql`SELECT id FROM members WHERE id = ${memberId} AND assigned_executive_id = ${user.id}`;
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   const user = await getCurrentUser();
-  if (!user) {
+  if (!user || !userHasAdminWrite(user, 'documents')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
