@@ -4,6 +4,8 @@ import { Suspense, useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { UsersRound } from 'lucide-react';
 import { PageHeader, StatCard } from '@/components/dashboard/page-header';
 import {
@@ -44,6 +46,12 @@ function ExecutivesContent() {
 
   const [executives, setExecutives] = useState<ExecutiveMember[]>([]);
   const [loading, setLoading] = useState(true);
+  const [memberQuery, setMemberQuery] = useState('');
+  const [memberHits, setMemberHits] = useState<Array<{ id: number; full_name: string; member_id: string }>>([]);
+  const [memberId, setMemberId] = useState<number | null>(null);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [termMessage, setTermMessage] = useState('');
 
   const fetchExecutives = useCallback(async () => {
     setLoading(true);
@@ -94,6 +102,87 @@ function ExecutivesContent() {
           tone="success"
         />
       </div>
+
+      <form
+        className="space-y-3 rounded-lg border border-border/80 bg-card p-4"
+        onSubmit={async (event) => {
+          event.preventDefault();
+          setTermMessage('');
+          const res = await fetch('/api/role-terms', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              member_id: memberId,
+              role: roleFilter,
+              start_date: startDate,
+              end_date: endDate,
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            setTermMessage(data.error || 'Could not save the role dates.');
+            return;
+          }
+          setTermMessage('Role dates saved. Their member role stays Member. This role shows while the dates include today.');
+          setMemberId(null);
+          setMemberQuery('');
+          fetchExecutives();
+        }}
+      >
+        <p className="text-sm font-medium">Assign {activeRole.label} for a period</p>
+        <p className="text-xs text-muted-foreground">
+          Everyone stays a member by default. Adding from and to dates gives them this role for that period, including the current year when today falls inside it.
+        </p>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Input
+            value={memberQuery}
+            onChange={(event) => setMemberQuery(event.target.value)}
+            placeholder="Search member"
+          />
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={async () => {
+              const res = await fetch(`/api/members?search=${encodeURIComponent(memberQuery)}&limit=8`);
+              const data = await res.json();
+              setMemberHits(data.members || []);
+            }}
+          >
+            Search
+          </Button>
+        </div>
+        {memberHits.length > 0 ? (
+          <ul className="divide-y rounded-md border">
+            {memberHits.map((hit) => (
+              <li key={hit.id}>
+                <button
+                  type="button"
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-muted"
+                  onClick={() => {
+                    setMemberId(hit.id);
+                    setMemberQuery(`${hit.full_name} (${hit.member_id})`);
+                    setMemberHits([]);
+                  }}
+                >
+                  {hit.full_name} · {hit.member_id}
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1">
+            <Label htmlFor="role-from">From</Label>
+            <Input id="role-from" type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} required />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="role-to">To</Label>
+            <Input id="role-to" type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} required />
+          </div>
+        </div>
+        {termMessage ? <p className="text-sm text-muted-foreground">{termMessage}</p> : null}
+        <Button type="submit" disabled={!memberId}>Save role dates</Button>
+      </form>
 
       <DataList>
         {loading ? (

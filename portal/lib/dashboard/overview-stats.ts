@@ -1,5 +1,5 @@
 import { sql } from '@/lib/db';
-import { ensureExtendedMemberProfileColumns } from '@/lib/db/compat';
+import { ensureExtendedMemberProfileColumns, ensureRoleTermsTable } from '@/lib/db/compat';
 import type { User } from '@/lib/auth';
 import { userHasAdminRead } from '@/lib/auth';
 
@@ -89,12 +89,13 @@ export type LeadershipPerson = {
 
 export async function getLeadershipRoster(): Promise<LeadershipPerson[]> {
   await ensureExtendedMemberProfileColumns();
+  await ensureRoleTermsTable();
   const rows = await sql`
     SELECT
       m.id,
       m.full_name,
       m.display_name,
-      m.membership_type,
+      COALESCE(term.role, m.membership_type) AS membership_type,
       (
         SELECT d.file_path
         FROM documents d
@@ -104,7 +105,16 @@ export async function getLeadershipRoster(): Promise<LeadershipPerson[]> {
         LIMIT 1
       ) as photo_path
     FROM members m
-    WHERE m.membership_type IN (
+    LEFT JOIN LATERAL (
+      SELECT t.role
+      FROM member_role_terms t
+      WHERE t.member_id = m.id
+        AND t.start_date <= CURRENT_DATE
+        AND t.end_date >= CURRENT_DATE
+      ORDER BY t.start_date DESC
+      LIMIT 1
+    ) term ON true
+    WHERE COALESCE(term.role, m.membership_type) IN (
       'president',
       'secretary',
       'treasurer',
@@ -132,6 +142,8 @@ export type BirthdayPerson = {
   full_name: string;
   display_name: string | null;
   photo_url: string | null;
+  phone: string | null;
+  whatsapp_number: string | null;
   next_birthday: string;
   days_until: number;
 };
@@ -144,6 +156,8 @@ export async function getUpcomingBirthdays(withinDays = 30): Promise<BirthdayPer
         m.id,
         m.full_name,
         m.display_name,
+        m.phone,
+        m.whatsapp_number,
         m.date_of_birth
       FROM members m
       WHERE m.date_of_birth IS NOT NULL
@@ -166,6 +180,8 @@ export async function getUpcomingBirthdays(withinDays = 30): Promise<BirthdayPer
       u.id,
       u.full_name,
       u.display_name,
+      u.phone,
+      u.whatsapp_number,
       to_char(u.date_of_birth, 'YYYY-MM-DD') AS date_of_birth,
       photo.file_path AS photo_path
     FROM upcoming u
@@ -198,6 +214,8 @@ export async function getUpcomingBirthdays(withinDays = 30): Promise<BirthdayPer
         id: Number(row.id),
         full_name: String(row.full_name),
         display_name: row.display_name ? String(row.display_name) : null,
+        phone: row.phone ? String(row.phone) : null,
+        whatsapp_number: row.whatsapp_number ? String(row.whatsapp_number) : null,
         photo_url: row.photo_path
           ? `/api/documents/file?pathname=${encodeURIComponent(String(row.photo_path))}`
           : null,

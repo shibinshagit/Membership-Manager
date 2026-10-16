@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -204,6 +205,11 @@ export default function FeesPage() {
       <PageHeader
         title="Fees & Payments"
         description="Yearly dues are created automatically per member. Download PDF invoices or receipts, mark paid, or send WhatsApp reminders."
+        actions={
+          <Button asChild>
+            <Link href="/dashboard/fees/receipt">Membership receipt</Link>
+          </Button>
+        }
       />
 
       {stats && (

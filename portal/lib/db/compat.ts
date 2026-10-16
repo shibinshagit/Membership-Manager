@@ -28,7 +28,8 @@ export async function ensureUsersPermissionsSchema(): Promise<void> {
       'secretary',
       'central_committee',
       'executive',
-      'member'
+      'member',
+      'welfare'
     ))
   `;
 
@@ -267,6 +268,52 @@ export async function ensureWhatsAppGroupColumn(): Promise<void> {
   `;
 
   whatsappGroupColumnEnsured = true;
+}
+
+let roleTermsEnsured = false;
+
+export async function ensureRoleTermsTable(): Promise<void> {
+  if (roleTermsEnsured) return;
+  await sql`
+    CREATE TABLE IF NOT EXISTS member_role_terms (
+      id SERIAL PRIMARY KEY,
+      member_id INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+      role VARCHAR(50) NOT NULL,
+      start_date DATE NOT NULL,
+      end_date DATE NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    )
+  `;
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_member_role_terms_member
+    ON member_role_terms(member_id, start_date DESC)
+  `;
+  roleTermsEnsured = true;
+}
+
+let meetingsEnsured = false;
+
+export async function ensureMeetingsTables(): Promise<void> {
+  if (meetingsEnsured) return;
+  await sql`
+    CREATE TABLE IF NOT EXISTS meetings (
+      id SERIAL PRIMARY KEY,
+      title VARCHAR(200) NOT NULL,
+      meeting_date DATE NOT NULL,
+      template VARCHAR(40) NOT NULL,
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    )
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS meeting_attendance (
+      id SERIAL PRIMARY KEY,
+      meeting_id INTEGER NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+      member_id INTEGER NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+      present BOOLEAN NOT NULL DEFAULT false,
+      UNIQUE (meeting_id, member_id)
+    )
+  `;
+  meetingsEnsured = true;
 }
 
 let accountsTablesEnsured = false;

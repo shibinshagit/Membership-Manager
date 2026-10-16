@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(255) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   full_name VARCHAR(255) NOT NULL,
-  role VARCHAR(50) NOT NULL CHECK (role IN ('super_admin', 'editor', 'viewer', 'president', 'secretary', 'central_committee', 'executive', 'member')),
+  role VARCHAR(50) NOT NULL CHECK (role IN ('super_admin', 'editor', 'viewer', 'president', 'secretary', 'central_committee', 'executive', 'member', 'welfare')),
   phone VARCHAR(20),
   allowed_pages JSONB,
   writable_pages JSONB,

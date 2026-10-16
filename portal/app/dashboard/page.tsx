@@ -3,7 +3,6 @@ import { Fraunces, Source_Sans_3 } from 'next/font/google';
 import { getCurrentUser } from '@/lib/auth';
 import {
   getLeadershipRoster,
-  getUpcomingBirthdays,
   type LeadershipPerson,
 } from '@/lib/dashboard/overview-stats';
 import { memberDisplayName } from '@/lib/members/display-name';
@@ -43,13 +42,19 @@ function pickByRole(people: LeadershipPerson[], role: string): LeadershipPerson 
 function OfficerCard({
   label,
   person,
+  large = false,
 }: {
   label: string;
   person: LeadershipPerson | null;
+  large?: boolean;
 }) {
   return (
     <article
-      className="relative mt-10 flex h-full flex-col items-center border px-3 pb-5 pt-12 text-center sm:mt-12 sm:px-4 sm:pt-14"
+      className={
+        large
+          ? 'relative mt-16 flex h-full flex-col items-center border px-3 pb-5 pt-16 text-center sm:mt-20 sm:px-4 sm:pt-20'
+          : 'relative mt-10 flex h-full flex-col items-center border px-3 pb-5 pt-12 text-center sm:mt-12 sm:px-4 sm:pt-14'
+      }
       style={{
         borderColor: GOLD_LINE,
         background: 'linear-gradient(180deg, rgba(12, 36, 34, 0.55), rgba(6, 18, 17, 0.85))',
@@ -57,7 +62,11 @@ function OfficerCard({
       }}
     >
       <div
-        className="absolute left-1/2 top-0 h-20 w-20 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full border-[3px] bg-[#102826] sm:h-24 sm:w-24"
+        className={
+          large
+            ? 'absolute left-1/2 top-0 h-28 w-28 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full border-[3px] bg-[#102826] sm:h-36 sm:w-36'
+            : 'absolute left-1/2 top-0 h-20 w-20 -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full border-[3px] bg-[#102826] sm:h-24 sm:w-24'
+        }
         style={{ borderColor: GOLD }}
       >
         {person?.photo_url ? (
@@ -107,10 +116,12 @@ function OfficerRow({
   title,
   roles,
   people,
+  large = false,
 }: {
   title: string;
   roles: ReadonlyArray<{ key: string; label: string }>;
   people: LeadershipPerson[];
+  large?: boolean;
 }) {
   return (
     <section>
@@ -126,6 +137,7 @@ function OfficerRow({
             key={role.key}
             label={role.label}
             person={pickByRole(people, role.key)}
+            large={large}
           />
         ))}
       </div>
@@ -137,10 +149,7 @@ export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) return null;
 
-  const [roster, birthdays] = await Promise.all([
-    getLeadershipRoster(),
-    getUpcomingBirthdays(0),
-  ]);
+  const roster = await getLeadershipRoster();
   const patrons = roster.filter((person) => person.membership_type === 'patrions');
 
   return (
@@ -176,69 +185,13 @@ export default async function DashboardPage() {
           </p>
         </header>
 
-        <section
-          className="relative mx-auto mt-8 max-w-4xl overflow-hidden border px-4 py-6 text-center sm:px-8 sm:py-8"
-          style={{
-            borderColor: GOLD,
-            background:
-              'radial-gradient(ellipse at top, rgba(228,197,122,0.22), transparent 55%), linear-gradient(180deg, rgba(32,58,48,0.95), rgba(8,24,22,0.95))',
-            boxShadow: '0 0 0 1px rgba(228,197,122,0.25), 0 18px 50px rgba(0,0,0,0.35)',
-          }}
-        >
-          <div
-            className="pointer-events-none absolute inset-x-0 top-0 h-1"
-            style={{ background: `linear-gradient(90deg, transparent, ${GOLD}, transparent)` }}
-            aria-hidden
-          />
-          <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-[#f3e2b0]">
-            Today&apos;s birthdays
-          </p>
-          {birthdays.length === 0 ? (
-            <p className="mt-3 text-sm text-white/70">No birthdays today.</p>
-          ) : (
-            <ul className="mt-6 flex flex-wrap items-start justify-center gap-4 sm:gap-5">
-              {birthdays.map((person) => (
-                <li key={person.id} className="w-40 sm:w-44">
-                  <Link
-                    href={`/dashboard/members/${person.id}`}
-                    className="group flex h-full flex-col items-center border border-[#e4c57a]/40 bg-black/25 px-3 pb-4 pt-5 transition-colors hover:border-[#e4c57a] hover:bg-black/40"
-                  >
-                    <span className="rounded-full p-1 shadow-[0_0_24px_rgba(228,197,122,0.45)]" style={{ background: GOLD }}>
-                      <span className="block h-20 w-20 overflow-hidden rounded-full bg-[#102826] sm:h-24 sm:w-24">
-                        {person.photo_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={person.photo_url}
-                            alt={memberDisplayName(person)}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <span className="flex h-full w-full items-center justify-center text-2xl font-semibold text-[#e4c57a]">
-                            {memberDisplayName(person).slice(0, 1).toUpperCase()}
-                          </span>
-                        )}
-                      </span>
-                    </span>
-                    <span className="mt-3 line-clamp-2 font-[family-name:var(--font-mpa-display)] text-base font-semibold leading-snug text-[#f6e7bf] group-hover:underline">
-                      {memberDisplayName(person) || '—'}
-                    </span>
-                    <span className="mt-2 rounded-full border border-[#e4c57a]/50 bg-[#e4c57a]/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#f3e2b0]">
-                      Happy birthday
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
         <div
           className="mx-auto my-8 h-px max-w-5xl sm:my-10"
           style={{ backgroundColor: GOLD_LINE }}
         />
 
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-12 pb-4 sm:gap-14">
-          <OfficerRow title="Office bearers" roles={OFFICER_ROW_1} people={roster} />
+          <OfficerRow title="Office bearers" roles={OFFICER_ROW_1} people={roster} large />
           <OfficerRow title="Deputy office bearers" roles={OFFICER_ROW_2} people={roster} />
 
           <section>

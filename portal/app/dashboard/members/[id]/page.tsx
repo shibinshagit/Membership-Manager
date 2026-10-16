@@ -120,6 +120,7 @@ interface Member {
   children_details: string | null;
   family_residing_with: boolean | null;
   membership_type: string;
+  role_terms?: Array<{ id: number; role: string; start_date: string; end_date: string }>;
   membership_plan?: 'annual' | 'lifetime' | null;
   membership_payment_status?: 'paid' | 'unpaid' | null;
   membership_fee_year?: string | null;
@@ -232,7 +233,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
         return;
       }
 
-      setMember(data.member);
+      setMember({ ...data.member, role_terms: data.role_terms || [] });
       setDocuments(data.documents || []);
       setFees(data.fees || []);
       setWelfare(data.welfare || null);
@@ -1532,6 +1533,15 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                   ) : (
                     <p className="text-sm capitalize">{member.membership_type.replace(/_/g, ' ')}</p>
                   )}
+                  {(member.role_terms || []).length > 0 ? (
+                    <ul className="space-y-1 pt-2 text-xs text-muted-foreground">
+                      {(member.role_terms || []).map((term) => (
+                        <li key={term.id}>
+                          {term.role.replace(/_/g, ' ')} · {String(term.start_date).slice(0, 10)} to {String(term.end_date).slice(0, 10)}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
                 </div>
                 <div className="space-y-2">
                   <Label>Membership Plan</Label>

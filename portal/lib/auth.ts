@@ -22,7 +22,8 @@ export type UserRole =
   | 'secretary'
   | 'central_committee'
   | 'executive'
-  | 'member';
+  | 'member'
+  | 'welfare';
 
 export interface User {
   id: number;

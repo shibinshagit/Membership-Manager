@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import type { LucideIcon } from 'lucide-react';
-import { LogOut, Menu, X, ChevronDown, Settings2 } from 'lucide-react';
+import { Cake, LogOut, Menu, X, ChevronDown, Settings2, ClipboardCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -61,6 +61,12 @@ const navGroups: Array<{ label: string; items: NavItem[] }> = [
         exact: true,
         pageKey: 'dashboard',
       },
+      {
+        name: 'Birthdays',
+        href: '/dashboard/birthdays',
+        icon: Cake,
+        pageKey: 'dashboard',
+      },
     ],
   },
   {
@@ -105,6 +111,12 @@ const navGroups: Array<{ label: string; items: NavItem[] }> = [
           href: `/dashboard/executives?role=${role.value}`,
           icon: role.icon,
         })),
+      },
+      {
+        name: 'Meetings',
+        href: '/dashboard/meetings',
+        icon: ClipboardCheck,
+        pageKey: 'committee',
       },
       {
         name: 'Committee',

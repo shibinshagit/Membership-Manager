@@ -21,7 +21,7 @@ export const WRITABLE_APP_PAGES = APP_PAGES.filter(
 
 export const ALL_WRITABLE_PAGE_KEYS: AppPageKey[] = WRITABLE_APP_PAGES.map((p) => p.key);
 
-export const MANAGEABLE_ROLES = ['super_admin', 'editor', 'viewer'] as const;
+export const MANAGEABLE_ROLES = ['super_admin', 'editor', 'viewer', 'welfare'] as const;
 export type ManageableRole = (typeof MANAGEABLE_ROLES)[number];
 
 export function parseAllowedPages(raw: unknown): AppPageKey[] | null {
@@ -60,6 +60,7 @@ export function effectiveAllowedPages(
   role: string,
   allowedPages: AppPageKey[] | null | undefined
 ): AppPageKey[] {
+  if (role === 'welfare') return ['members'];
   if (role === 'super_admin') return [...ALL_APP_PAGE_KEYS];
   if (allowedPages && allowedPages.length > 0) return allowedPages;
   if (role === 'viewer' || role === 'editor') return [...ALL_APP_PAGE_KEYS];
@@ -73,7 +74,7 @@ export function effectiveWritablePages(
   writablePages: AppPageKey[] | null | undefined
 ): AppPageKey[] {
   if (role === 'super_admin') return [...ALL_WRITABLE_PAGE_KEYS];
-  if (role === 'viewer') return [];
+  if (role === 'viewer' || role === 'welfare') return [];
   if (role === 'president' || role === 'secretary') return [...ALL_WRITABLE_PAGE_KEYS];
 
   if (role === 'editor') {
@@ -97,12 +98,15 @@ export function canAccessPage(
 }
 
 export function pageKeyFromPath(pathname: string): AppPageKey | null {
-  if (pathname === '/dashboard' || pathname === '/dashboard/') return 'dashboard';
+  if (pathname === '/dashboard' || pathname === '/dashboard/' || pathname.startsWith('/dashboard/birthdays')) {
+    return 'dashboard';
+  }
   if (pathname.startsWith('/dashboard/members')) return 'members';
   if (pathname.startsWith('/dashboard/documents')) return 'documents';
   if (pathname.startsWith('/dashboard/fees')) return 'fees';
   if (pathname.startsWith('/dashboard/accounts')) return 'accounts';
   if (pathname.startsWith('/dashboard/executives')) return 'executives';
+  if (pathname.startsWith('/dashboard/meetings')) return 'committee';
   if (pathname.startsWith('/dashboard/committee')) return 'committee';
   if (pathname.startsWith('/dashboard/settings')) return 'settings';
   return null;

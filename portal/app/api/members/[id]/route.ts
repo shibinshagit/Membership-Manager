@@ -21,6 +21,7 @@ import {
   ensureExtendedMemberProfileColumns,
   ensureMemberMembershipsTable,
   ensureWelfareColumns,
+  ensureRoleTermsTable,
   ensureWhatsAppGroupColumn,
   hasAssignedExecutiveMemberColumn,
 } from '@/lib/db/compat';
@@ -198,7 +199,16 @@ export async function GET(
       return NextResponse.json({ error: 'Member not found' }, { status: 404 });
     }
 
-    const [documents, fees, welfare] = await Promise.all([
+    if (user.role === 'welfare') {
+      const row = members[0] as { gender?: string | null; is_welfare_member?: boolean | null };
+      const isWoman = String(row.gender || '').toLowerCase() === 'female';
+      if (!isWoman && !row.is_welfare_member) {
+        return NextResponse.json({ error: 'Member not found' }, { status: 404 });
+      }
+    }
+
+    await ensureRoleTermsTable();
+    const [documents, fees, welfare, roleTerms] = await Promise.all([
       sql`SELECT * FROM documents WHERE member_id = ${id} ORDER BY created_at DESC`,
       sql`
         SELECT * FROM member_memberships
@@ -206,6 +216,12 @@ export async function GET(
         ORDER BY due_date DESC NULLS LAST, updated_at DESC
       `,
       getWelfareSummaryForMember(Number(id)),
+      sql`
+        SELECT id, role, start_date::text AS start_date, end_date::text AS end_date
+        FROM member_role_terms
+        WHERE member_id = ${id}
+        ORDER BY start_date DESC
+      `,
     ]);
 
     const yearsMeta = deriveJoinAndPaidYears(members[0] as Record<string, unknown>, fees);
@@ -215,6 +231,7 @@ export async function GET(
       documents,
       fees,
       welfare,
+      role_terms: roleTerms,
       join_year: yearsMeta.join_year,
       paid_years: yearsMeta.paid_years,
       lifetime_started_on: yearsMeta.lifetime_started_on,

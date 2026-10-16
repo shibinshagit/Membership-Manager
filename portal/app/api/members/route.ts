@@ -69,6 +69,7 @@ export async function GET(request: Request) {
       searchParams.get('welfare') === '1' ||
       searchParams.get('welfare') === 'true' ||
       searchParams.get('welfare') === 'yes';
+    const womenWelfareLogin = user.role === 'welfare';
     const whatsappGroupParam = searchParams.get('whatsapp_group');
     const whatsappGroupFilter =
       whatsappGroupParam === 'added' || whatsappGroupParam === 'not_added'
@@ -119,6 +120,11 @@ export async function GET(request: Request) {
             )
             AND (
               ${welfareOnly}::boolean IS NOT TRUE
+              OR COALESCE(m.is_welfare_member, false) = true
+            )
+            AND (
+              ${womenWelfareLogin}::boolean IS NOT TRUE
+              OR LOWER(COALESCE(m.gender, '')) = 'female'
               OR COALESCE(m.is_welfare_member, false) = true
             )
             AND (
@@ -229,6 +235,11 @@ export async function GET(request: Request) {
             )
             AND (
               ${welfareOnly}::boolean IS NOT TRUE
+              OR COALESCE(m.is_welfare_member, false) = true
+            )
+            AND (
+              ${womenWelfareLogin}::boolean IS NOT TRUE
+              OR LOWER(COALESCE(m.gender, '')) = 'female'
               OR COALESCE(m.is_welfare_member, false) = true
             )
             AND (
@@ -370,6 +381,11 @@ export async function GET(request: Request) {
                   OR COALESCE(m.is_welfare_member, false) = true
                 )
                 AND (
+                  ${womenWelfareLogin}::boolean IS NOT TRUE
+                  OR LOWER(COALESCE(m.gender, '')) = 'female'
+                  OR COALESCE(m.is_welfare_member, false) = true
+                )
+                AND (
                   ${whatsappGroupFilter}::text IS NULL
                   OR (
                     ${whatsappGroupFilter} = 'added'
@@ -501,6 +517,11 @@ export async function GET(request: Request) {
                 )
                 AND (
                   ${welfareOnly}::boolean IS NOT TRUE
+                  OR COALESCE(m.is_welfare_member, false) = true
+                )
+                AND (
+                  ${womenWelfareLogin}::boolean IS NOT TRUE
+                  OR LOWER(COALESCE(m.gender, '')) = 'female'
                   OR COALESCE(m.is_welfare_member, false) = true
                 )
                 AND (
@@ -639,6 +660,11 @@ export async function GET(request: Request) {
                 OR COALESCE(m.is_welfare_member, false) = true
               )
               AND (
+                ${womenWelfareLogin}::boolean IS NOT TRUE
+                OR LOWER(COALESCE(m.gender, '')) = 'female'
+                OR COALESCE(m.is_welfare_member, false) = true
+              )
+              AND (
                 ${whatsappGroupFilter}::text IS NULL
                 OR (
                   ${whatsappGroupFilter} = 'added'
@@ -771,6 +797,11 @@ export async function GET(request: Request) {
               )
               AND (
                 ${welfareOnly}::boolean IS NOT TRUE
+                OR COALESCE(m.is_welfare_member, false) = true
+              )
+              AND (
+                ${womenWelfareLogin}::boolean IS NOT TRUE
+                OR LOWER(COALESCE(m.gender, '')) = 'female'
                 OR COALESCE(m.is_welfare_member, false) = true
               )
               AND (

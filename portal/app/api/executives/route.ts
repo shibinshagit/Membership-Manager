@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { getCurrentUser, canManageAllMembers, canReadPrivilegedPage, userHasAdminWrite } from '@/lib/auth';
-import { ensureAssignedExecutiveMemberColumn } from '@/lib/db/compat';
+import { ensureAssignedExecutiveMemberColumn, ensureRoleTermsTable } from '@/lib/db/compat';
 
 // Get role-based member list for assignment/list pages
 export async function GET(request: Request) {
@@ -26,6 +26,7 @@ export async function GET(request: Request) {
       'joint_treasurer',
     ];
     const targetRole = allowedRoles.includes(roleParam) ? roleParam : 'executive';
+    await ensureRoleTermsTable();
     const hasExecutiveMemberColumn = await ensureAssignedExecutiveMemberColumn();
     const executives =
       targetRole === 'executive'
@@ -97,6 +98,11 @@ export async function GET(request: Request) {
               FROM members e
               LEFT JOIN members m ON m.assigned_executive_member_id = e.id
               WHERE e.membership_type = 'patrions'
+                OR EXISTS (
+                  SELECT 1 FROM member_role_terms t
+                  WHERE t.member_id = e.id AND t.role = 'patrions'
+                    AND t.start_date <= CURRENT_DATE AND t.end_date >= CURRENT_DATE
+                )
               GROUP BY e.id
               ORDER BY e.full_name
             `
@@ -110,6 +116,11 @@ export async function GET(request: Request) {
                 0::int as member_count
               FROM members e
               WHERE e.membership_type = 'patrions'
+                OR EXISTS (
+                  SELECT 1 FROM member_role_terms t
+                  WHERE t.member_id = e.id AND t.role = 'patrions'
+                    AND t.start_date <= CURRENT_DATE AND t.end_date >= CURRENT_DATE
+                )
               ORDER BY e.full_name
             `
         : hasExecutiveMemberColumn
@@ -124,6 +135,11 @@ export async function GET(request: Request) {
             FROM members e
             LEFT JOIN members m ON m.assigned_executive_member_id = e.id
             WHERE e.membership_type = ${targetRole}
+              OR EXISTS (
+                SELECT 1 FROM member_role_terms t
+                WHERE t.member_id = e.id AND t.role = ${targetRole}
+                  AND t.start_date <= CURRENT_DATE AND t.end_date >= CURRENT_DATE
+              )
             GROUP BY e.id
             ORDER BY e.full_name
           `
@@ -137,6 +153,11 @@ export async function GET(request: Request) {
               0::int as member_count
             FROM members e
             WHERE e.membership_type = ${targetRole}
+              OR EXISTS (
+                SELECT 1 FROM member_role_terms t
+                WHERE t.member_id = e.id AND t.role = ${targetRole}
+                  AND t.start_date <= CURRENT_DATE AND t.end_date >= CURRENT_DATE
+              )
             ORDER BY e.full_name
           `;
 

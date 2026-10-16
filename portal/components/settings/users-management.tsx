@@ -113,7 +113,10 @@ export function UsersManagement({ currentUserId }: { currentUserId: number }) {
   const openEdit = (user: PortalUser) => {
     setEditing(user);
     const role: ManageableRole =
-      user.role === 'super_admin' || user.role === 'editor' || user.role === 'viewer'
+      user.role === 'super_admin' ||
+      user.role === 'editor' ||
+      user.role === 'viewer' ||
+      user.role === 'welfare'
         ? user.role
         : 'viewer';
     const allowed =
@@ -382,10 +385,16 @@ export function UsersManagement({ currentUserId }: { currentUserId: number }) {
                     ...form,
                     role,
                     allowed_pages:
-                      role === 'super_admin' ? [...ALL_APP_PAGE_KEYS] : form.allowed_pages,
+                      role === 'welfare'
+                        ? ['members']
+                        : role === 'super_admin'
+                          ? [...ALL_APP_PAGE_KEYS]
+                          : form.allowed_pages,
                     writable_pages:
                       role === 'super_admin'
                         ? [...ALL_WRITABLE_PAGE_KEYS]
+                        : role === 'welfare'
+                          ? []
                         : role === 'editor'
                           ? form.writable_pages.length
                             ? form.writable_pages
@@ -403,6 +412,7 @@ export function UsersManagement({ currentUserId }: { currentUserId: number }) {
                   <SelectItem value="super_admin">Super admin — full access</SelectItem>
                   <SelectItem value="editor">Editor — add & edit on selected pages</SelectItem>
                   <SelectItem value="viewer">Viewer — view only</SelectItem>
+                  <SelectItem value="welfare">Women & welfare — members only</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -410,6 +420,10 @@ export function UsersManagement({ currentUserId }: { currentUserId: number }) {
             {form.role === 'super_admin' ? (
               <p className="text-xs text-muted-foreground">
                 Super admins always see every page and can edit everything.
+              </p>
+            ) : form.role === 'welfare' ? (
+              <p className="text-xs text-muted-foreground">
+                This login only opens the members list, limited to women and welfare members.
               </p>
             ) : (
               <>

@@ -30,7 +30,7 @@ function resolveWritable(
   existingWritable: AppPageKey[] | null
 ): AppPageKey[] {
   if (role === 'super_admin') return [...ALL_WRITABLE_PAGE_KEYS];
-  if (role === 'viewer') return [];
+  if (role === 'viewer' || role === 'welfare') return [];
   const allowedSet = new Set(allowedPages);
   const source =
     body.writable_pages !== undefined
@@ -182,6 +182,9 @@ async function updateUser(request: Request, params: Promise<{ id: string }>) {
     }
     if (role === 'super_admin') {
       allowedPages = [...ALL_APP_PAGE_KEYS];
+    }
+    if (role === 'welfare') {
+      allowedPages = ['members'];
     }
 
     const writablePages = resolveWritable(

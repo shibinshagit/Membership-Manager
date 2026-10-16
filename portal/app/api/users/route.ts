@@ -42,7 +42,10 @@ function resolvePagePermissions(role: ManageableRole, body: Record<string, unkno
   }
 
   let writablePages: AppPageKey[] = [];
-  if (role === 'super_admin') {
+  if (role === 'welfare') {
+    allowedPages = ['members'];
+    writablePages = [];
+  } else if (role === 'super_admin') {
     allowedPages = [...ALL_APP_PAGE_KEYS];
     writablePages = [...ALL_WRITABLE_PAGE_KEYS];
   } else if (role === 'viewer') {
@@ -109,7 +112,7 @@ export async function POST(request: Request) {
 
     if (!MANAGEABLE_ROLES.includes(role)) {
       return NextResponse.json(
-        { error: 'Role must be super_admin, editor, or viewer' },
+        { error: 'Role must be super_admin, editor, viewer, or welfare' },
         { status: 400 }
       );
     }

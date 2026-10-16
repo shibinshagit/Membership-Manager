@@ -16,6 +16,7 @@ enum UserRole {
   central_committee
   executive
   member
+  welfare
 }
 
 enum MemberStatus {

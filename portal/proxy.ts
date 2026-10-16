@@ -42,7 +42,7 @@ export async function proxy(request: NextRequest) {
   // Viewers are read-only: block mutating API calls (self profile update still allowed).
   if (
     hasValidSession &&
-    session.role === 'viewer' &&
+    (session.role === 'viewer' || session.role === 'welfare') &&
     pathname.startsWith('/api/') &&
     ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)
   ) {
