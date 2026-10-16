@@ -52,8 +52,8 @@ function OfficerCard({
     <article
       className={
         large
-          ? 'relative mt-16 flex h-full flex-col items-center border px-3 pb-5 pt-16 text-center sm:mt-20 sm:px-4 sm:pt-20'
-          : 'relative mt-10 flex h-full flex-col items-center border px-3 pb-5 pt-12 text-center sm:mt-12 sm:px-4 sm:pt-14'
+          ? 'relative flex h-full flex-col items-center border px-3 pb-5 pt-16 text-center sm:px-4 sm:pt-20'
+          : 'relative flex h-full flex-col items-center border px-3 pb-5 pt-12 text-center sm:px-4 sm:pt-14'
       }
       style={{
         borderColor: GOLD_LINE,
@@ -126,12 +126,18 @@ function OfficerRow({
   return (
     <section>
       <h2
-        className="mb-2 text-center font-[family-name:var(--font-mpa-display)] text-sm font-semibold uppercase tracking-[0.28em] sm:text-base"
+        className="relative z-20 mx-auto w-fit bg-[#071614] px-5 py-2 text-center font-[family-name:var(--font-mpa-display)] text-sm font-semibold uppercase tracking-[0.28em] sm:text-base"
         style={{ color: GOLD }}
       >
         {title}
       </h2>
-      <div className="mx-auto grid w-full max-w-4xl grid-cols-3 items-stretch gap-3 sm:gap-6">
+      <div
+        className={
+          large
+            ? 'mx-auto grid w-full max-w-4xl grid-cols-3 items-stretch gap-3 pt-16 sm:gap-6 sm:pt-20'
+            : 'mx-auto grid w-full max-w-4xl grid-cols-3 items-stretch gap-3 pt-12 sm:gap-6 sm:pt-14'
+        }
+      >
         {roles.map((role) => (
           <OfficerCard
             key={role.key}
@@ -190,13 +196,13 @@ export default async function DashboardPage() {
           style={{ backgroundColor: GOLD_LINE }}
         />
 
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-12 pb-4 sm:gap-14">
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-16 pb-4 sm:gap-20">
           <OfficerRow title="Office bearers" roles={OFFICER_ROW_1} people={roster} large />
           <OfficerRow title="Deputy office bearers" roles={OFFICER_ROW_2} people={roster} />
 
           <section>
             <h2
-              className="mb-2 text-center font-[family-name:var(--font-mpa-display)] text-sm font-semibold uppercase tracking-[0.28em] sm:text-base"
+              className="relative z-20 mx-auto w-fit bg-[#071614] px-5 py-2 text-center font-[family-name:var(--font-mpa-display)] text-sm font-semibold uppercase tracking-[0.28em] sm:text-base"
               style={{ color: GOLD }}
             >
               Honorary patrons & advisors
@@ -206,7 +212,7 @@ export default async function DashboardPage() {
                 No patrons yet. Open a member, choose Edit, and set Member Role to Patron.
               </p>
             ) : (
-              <div className="mx-auto grid w-full max-w-4xl grid-cols-2 items-stretch gap-3 sm:grid-cols-3 sm:gap-6">
+              <div className="mx-auto grid w-full max-w-4xl grid-cols-2 items-stretch gap-3 pt-12 sm:grid-cols-3 sm:gap-6 sm:pt-14">
                 {patrons.map((person) => (
                   <OfficerCard key={person.id} label="Patron" person={person} />
                 ))}
