@@ -140,26 +140,28 @@ export default async function DashboardPage() {
         aria-hidden
       />
 
-      <div className="relative px-4 py-6 sm:px-8 sm:py-8 lg:px-10 lg:py-10">
-        <header className="mx-auto flex max-w-3xl flex-col items-center text-center">
+      <div className="relative px-4 py-8 sm:px-8 sm:py-10 lg:px-10 lg:py-12">
+        <header className="mx-auto flex w-full max-w-3xl items-center justify-center gap-5 border-b border-white/15 pb-8 text-left sm:gap-7 sm:pb-10">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/mpa-logo.png"
             alt="Madikai Pravasi Association"
-            className="h-14 w-14 rounded-xl object-cover shadow-xl ring-2 ring-white/25 sm:h-16 sm:w-16"
+            className="h-24 w-24 shrink-0 rounded-full border-2 border-white/80 object-cover shadow-md ring-1 ring-white/10 sm:h-28 sm:w-28 lg:h-32 lg:w-32"
           />
-          <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.28em] text-teal-100/75">
-            Membership Portal
-          </p>
-          <h1 className="mt-1 font-[family-name:var(--font-mpa-display)] text-2xl font-semibold tracking-tight text-white sm:text-3xl lg:text-[2.15rem]">
-            Madikai Pravasi Association
-          </h1>
-          <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-teal-50/80">
-            Connecting Madikai natives across the globe — membership, community, and care.
-          </p>
-          <p className="mt-1 text-xs text-teal-100/55">
-            Reg. No: KSR/124/2026 · Madikai, Kasaragod
-          </p>
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-teal-100/60">
+              Membership Portal
+            </p>
+            <h1 className="mt-1 font-[family-name:var(--font-mpa-display)] text-2xl font-semibold leading-tight tracking-tight text-white sm:text-3xl lg:text-[2.15rem]">
+              Madikai Pravasi Association
+            </h1>
+            <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-teal-50/80">
+              Connecting Madikai natives across the globe — membership, community, and care.
+            </p>
+            <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.16em] text-teal-100/75">
+              Reg. No: KSR/124/2026 · Madikai, Kasaragod
+            </p>
+          </div>
         </header>
 
         <div className="mx-auto mt-8 flex w-full max-w-3xl flex-col gap-8 pb-10 sm:mt-10 sm:gap-10">
