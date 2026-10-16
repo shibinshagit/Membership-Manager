@@ -75,6 +75,7 @@ model Member {
   id                 Int         @id @default(autoincrement())
   memberId           String      @unique @map("member_id") @db.VarChar(50)
   fullName           String      @map("full_name") @db.VarChar(255)
+  displayName        String?     @map("display_name") @db.VarChar(255)
   fullNameArabic     String?     @map("full_name_arabic") @db.VarChar(255)
   email              String?     @db.VarChar(255)
   phone              String      @db.VarChar(20)

@@ -1,4 +1,5 @@
 import { sql } from '@/lib/db';
+import { ensureExtendedMemberProfileColumns } from '@/lib/db/compat';
 import type { User } from '@/lib/auth';
 import { userHasAdminRead } from '@/lib/auth';
 
@@ -81,15 +82,18 @@ export async function getOverviewStats(user: User): Promise<OverviewStats> {
 export type LeadershipPerson = {
   id: number;
   full_name: string;
+  display_name: string | null;
   membership_type: string;
   photo_url: string | null;
 };
 
 export async function getLeadershipRoster(): Promise<LeadershipPerson[]> {
+  await ensureExtendedMemberProfileColumns();
   const rows = await sql`
     SELECT
       m.id,
       m.full_name,
+      m.display_name,
       m.membership_type,
       (
         SELECT d.file_path
@@ -115,9 +119,91 @@ export async function getLeadershipRoster(): Promise<LeadershipPerson[]> {
   return rows.map((row) => ({
     id: Number(row.id),
     full_name: String(row.full_name),
+    display_name: row.display_name ? String(row.display_name) : null,
     membership_type: String(row.membership_type),
     photo_url: row.photo_path
       ? `/api/documents/file?pathname=${encodeURIComponent(String(row.photo_path))}`
       : null,
   }));
+}
+
+export type BirthdayPerson = {
+  id: number;
+  full_name: string;
+  display_name: string | null;
+  photo_url: string | null;
+  next_birthday: string;
+  days_until: number;
+};
+
+export async function getUpcomingBirthdays(withinDays = 30): Promise<BirthdayPerson[]> {
+  await ensureExtendedMemberProfileColumns();
+  const rows = await sql`
+    WITH upcoming AS (
+      SELECT
+        m.id,
+        m.full_name,
+        m.display_name,
+        m.date_of_birth
+      FROM members m
+      WHERE m.date_of_birth IS NOT NULL
+        AND (
+          (
+            to_char(CURRENT_DATE, 'MMDD') <= to_char((CURRENT_DATE + (${withinDays}::int * INTERVAL '1 day'))::date, 'MMDD')
+            AND to_char(m.date_of_birth, 'MMDD') >= to_char(CURRENT_DATE, 'MMDD')
+            AND to_char(m.date_of_birth, 'MMDD') <= to_char((CURRENT_DATE + (${withinDays}::int * INTERVAL '1 day'))::date, 'MMDD')
+          )
+          OR (
+            to_char(CURRENT_DATE, 'MMDD') > to_char((CURRENT_DATE + (${withinDays}::int * INTERVAL '1 day'))::date, 'MMDD')
+            AND (
+              to_char(m.date_of_birth, 'MMDD') >= to_char(CURRENT_DATE, 'MMDD')
+              OR to_char(m.date_of_birth, 'MMDD') <= to_char((CURRENT_DATE + (${withinDays}::int * INTERVAL '1 day'))::date, 'MMDD')
+            )
+          )
+        )
+    )
+    SELECT
+      u.id,
+      u.full_name,
+      u.display_name,
+      to_char(u.date_of_birth, 'YYYY-MM-DD') AS date_of_birth,
+      photo.file_path AS photo_path
+    FROM upcoming u
+    LEFT JOIN LATERAL (
+      SELECT d.file_path
+      FROM documents d
+      WHERE d.member_id = u.id
+        AND d.document_type = 'photo'
+      ORDER BY d.created_at DESC
+      LIMIT 1
+    ) photo ON true
+    ORDER BY to_char(u.date_of_birth, 'MMDD') ASC, u.full_name ASC
+  `;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return rows
+    .flatMap((row) => {
+      const match = String(row.date_of_birth).match(/(\d{4})-(\d{2})-(\d{2})/);
+      if (!match) return [];
+      const month = Number(match[2]) - 1;
+      const day = Number(match[3]);
+      const next = new Date(today.getFullYear(), month, day);
+      if (next < today) next.setFullYear(today.getFullYear() + 1);
+      const daysUntil = Math.round((next.getTime() - today.getTime()) / 86400000);
+      if (daysUntil > withinDays) return [];
+      const iso = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`;
+      return [{
+        id: Number(row.id),
+        full_name: String(row.full_name),
+        display_name: row.display_name ? String(row.display_name) : null,
+        photo_url: row.photo_path
+          ? `/api/documents/file?pathname=${encodeURIComponent(String(row.photo_path))}`
+          : null,
+        next_birthday: iso,
+        days_until: daysUntil,
+      }];
+    })
+    .sort((a, b) => a.days_until - b.days_until || a.full_name.localeCompare(b.full_name));
 }

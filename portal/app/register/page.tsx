@@ -512,6 +512,20 @@ export default function RegisterPage() {
                   />
                 </Field>
 
+                <Field
+                  label="Display Name"
+                  htmlFor="display_name"
+                  fieldKey="display_name"
+                  error={err('display_name')}
+                >
+                  <Input
+                    id="display_name"
+                    name="display_name"
+                    placeholder="Short name, if different from your full name"
+                    className={inputClass}
+                  />
+                </Field>
+
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <Field
                     label="Date of Birth"

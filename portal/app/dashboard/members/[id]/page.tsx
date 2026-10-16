@@ -83,11 +83,13 @@ import {
 import { normalizeWhatsAppPhone, normalizePhoneInputValue } from '@/lib/members/normalize-phone';
 import { displayMemberPhone } from '@/lib/members/phone-canonical';
 import { WriteOnly } from '@/components/auth/write-only';
+import { cleanDisplayName, memberDisplayName } from '@/lib/members/display-name';
 
 interface Member {
   id: number;
   member_id: string;
   full_name: string;
+  display_name: string | null;
   gender: string | null;
   blood_group: string | null;
   marital_status: string | null;
@@ -764,7 +766,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
           </Button>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <h1 className="text-xl sm:text-2xl font-semibold text-foreground break-words">{member.full_name}</h1>
+              <h1 className="text-xl sm:text-2xl font-semibold text-foreground break-words">{memberDisplayName(member)}</h1>
               {member.is_welfare_member || welfare?.is_welfare_member ? <WelfareBadge /> : null}
               {member.added_to_whatsapp_group ? <WhatsAppGroupBadge /> : null}
               <span className={cn('text-xs px-2 py-1 rounded-full capitalize', getStatusColor(member.status))}>
@@ -948,6 +950,21 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                   ) : (
                     <p className="text-sm">{member.full_name}</p>
                   )}
+                </div>
+                <div className="space-y-2">
+                  <Label>Display Name</Label>
+                  {editing ? (
+                    <Input
+                      value={cleanDisplayName(formData.display_name) || ''}
+                      onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
+                      placeholder="Short name shown on the dashboard"
+                    />
+                  ) : (
+                    <p className="text-sm">{memberDisplayName(member)}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Used on the dashboard. Leave blank to show the full name.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label>Date of Birth</Label>
@@ -1508,6 +1525,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                         <SelectItem value="treasurer">Treasurer</SelectItem>
                         <SelectItem value="joint_treasurer">Joint Treasurer</SelectItem>
                         <SelectItem value="member">Member</SelectItem>
+                        <SelectItem value="patrions">Patron</SelectItem>
                         <SelectItem value="executive">Executive</SelectItem>
                       </SelectContent>
                     </Select>

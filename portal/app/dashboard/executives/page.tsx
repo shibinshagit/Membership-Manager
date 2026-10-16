@@ -102,7 +102,11 @@ function ExecutivesContent() {
           <DataListEmpty
             icon={UsersRound}
             title="No members found"
-            description="Try a different role from the sidebar."
+            description={
+              roleFilter === 'patrions'
+                ? 'Open a member, choose Edit, and set Member Role to Patron.'
+                : 'Try a different role from the sidebar.'
+            }
           />
         ) : (
           <>

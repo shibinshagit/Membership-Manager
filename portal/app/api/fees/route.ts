@@ -30,8 +30,6 @@ export async function GET(request: Request) {
         : null;
     const normalizedFeeYear = feeYear && feeYear !== 'all' ? feeYear : null;
 
-    await reconcileMemberStatusesByPayment();
-
     const fees = await sql`
       SELECT 
         f.*,

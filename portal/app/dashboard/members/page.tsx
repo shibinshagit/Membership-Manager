@@ -63,6 +63,7 @@ import { MembershipYearsPicker } from '@/components/members/membership-years-pic
 import { WelfareBadge } from '@/components/members/welfare-badge';
 import { WhatsAppGroupBadge } from '@/components/members/whatsapp-group-badge';
 import { WriteOnly } from '@/components/auth/write-only';
+import { memberDisplayName } from '@/lib/members/display-name';
 import { currentCalendarYear, ORG_START_YEAR } from '@/lib/fees-calendar';
 import { normalizeWhatsAppPhone } from '@/lib/members/normalize-phone';
 import { displayMemberPhone } from '@/lib/members/phone-canonical';
@@ -71,6 +72,7 @@ interface Member {
   id: number;
   member_id: string;
   full_name: string;
+  display_name?: string | null;
   email: string | null;
   phone: string;
   whatsapp_number?: string | null;
@@ -1250,13 +1252,13 @@ export default function MembersPage() {
                           onCheckedChange={(checked) =>
                             toggleSelectOne(member.id, checked === true)
                           }
-                          aria-label={`Select ${member.full_name}`}
+                          aria-label={`Select ${memberDisplayName(member)}`}
                         />
                       </div>
-                      <EntityAvatar name={member.full_name} className="h-9 w-9 text-xs" />
+                      <EntityAvatar name={memberDisplayName(member)} className="h-9 w-9 text-xs" />
                       <div className="min-w-0 flex-1 overflow-hidden">
                         <div className="flex flex-wrap items-center gap-2">
-                          <p className="truncate font-medium">{member.full_name}</p>
+                          <p className="truncate font-medium">{memberDisplayName(member)}</p>
                           {member.is_welfare_member ? <WelfareBadge /> : null}
                           {member.added_to_whatsapp_group ? <WhatsAppGroupBadge /> : null}
                         </div>
@@ -1372,17 +1374,17 @@ export default function MembersPage() {
                         onCheckedChange={(checked) =>
                           toggleSelectOne(member.id, checked === true)
                         }
-                        aria-label={`Select ${member.full_name}`}
+                        aria-label={`Select ${memberDisplayName(member)}`}
                       />
                     </div>
                     <span className="block truncate font-mono text-xs text-muted-foreground">
                       {member.member_id}
                     </span>
                     <div className="flex min-w-0 items-center gap-3 overflow-hidden">
-                      <EntityAvatar name={member.full_name} className="h-9 w-9 text-xs" />
+                      <EntityAvatar name={memberDisplayName(member)} className="h-9 w-9 text-xs" />
                       <div className="min-w-0 overflow-hidden">
                         <div className="flex flex-wrap items-center gap-2">
-                          <p className="truncate font-medium">{member.full_name}</p>
+                          <p className="truncate font-medium">{memberDisplayName(member)}</p>
                           {member.is_welfare_member ? <WelfareBadge /> : null}
                           {member.added_to_whatsapp_group ? <WhatsAppGroupBadge /> : null}
                         </div>

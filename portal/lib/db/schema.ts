@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS members (
   id SERIAL PRIMARY KEY,
   member_id VARCHAR(50) UNIQUE NOT NULL,
   full_name VARCHAR(255) NOT NULL,
+  display_name VARCHAR(255),
   full_name_arabic VARCHAR(255),
   gender VARCHAR(20),
   blood_group VARCHAR(10),
@@ -176,12 +177,15 @@ CREATE INDEX IF NOT EXISTS idx_committees_status ON committees(status);
 CREATE INDEX IF NOT EXISTS idx_committee_members_committee ON committee_members(committee_id);
 CREATE INDEX IF NOT EXISTS idx_committee_members_member ON committee_members(member_id);
 CREATE INDEX IF NOT EXISTS idx_documents_member_id ON documents(member_id);
+CREATE INDEX IF NOT EXISTS idx_documents_file_path ON documents(file_path);
+CREATE INDEX IF NOT EXISTS idx_documents_member_photo ON documents(member_id, document_type, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_whatsapp_logs_member_id ON whatsapp_logs(member_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON audit_logs(entity_type, entity_id);
 
 -- Alter statements for existing installations
 ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+ALTER TABLE members ADD COLUMN IF NOT EXISTS display_name VARCHAR(255);
 ALTER TABLE members ADD COLUMN IF NOT EXISTS full_name_arabic VARCHAR(255);
 ALTER TABLE members ADD COLUMN IF NOT EXISTS gender VARCHAR(20);
 ALTER TABLE members ADD COLUMN IF NOT EXISTS blood_group VARCHAR(10);

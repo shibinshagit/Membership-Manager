@@ -110,6 +110,7 @@ export default function NewMemberPage() {
     const data = {
       member_id: formData.get('member_id') || null,
       full_name: formData.get('full_name'),
+      display_name: formData.get('display_name') || null,
       gender: gender || null,
       blood_group: bloodGroup || null,
       marital_status: maritalStatus || null,
@@ -280,6 +281,17 @@ export default function NewMemberPage() {
                   placeholder="Enter full name"
                   required
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="display_name">Display Name</Label>
+                <Input
+                  id="display_name"
+                  name="display_name"
+                  placeholder="Short name for the dashboard"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Leave blank to use the full name.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="date_of_birth">Date of Birth</Label>
@@ -627,6 +639,7 @@ export default function NewMemberPage() {
                     <SelectItem value="treasurer">Treasurer</SelectItem>
                     <SelectItem value="joint_treasurer">Joint Treasurer</SelectItem>
                     <SelectItem value="member">Member</SelectItem>
+                    <SelectItem value="patrions">Patron</SelectItem>
                     <SelectItem value="executive">Executive</SelectItem>
                   </SelectContent>
                 </Select>

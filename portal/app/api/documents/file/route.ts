@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
       headers: {
         'Content-Type': result.blob.contentType || 'application/octet-stream',
         ...(result.blob.etag ? { ETag: String(result.blob.etag) } : {}),
-        'Cache-Control': 'private, no-cache',
+        'Cache-Control': 'private, max-age=86400',
         'Content-Disposition': contentDispositionInline(String(document[0].file_name)),
       },
     });

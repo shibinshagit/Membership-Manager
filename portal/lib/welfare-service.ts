@@ -138,18 +138,18 @@ export async function createWelfarePayment(options: {
 }
 
 export async function getWelfareSummaryForMember(memberId: number) {
-  await syncWelfareMemberStatus(memberId);
-
-  const members = await sql`
-    SELECT joined_date, is_welfare_member, welfare_payment_mode, welfare_joined_date
-    FROM members
-    WHERE id = ${memberId}
-  `;
+  const [members, welfareFees] = await Promise.all([
+    sql`
+      SELECT joined_date, is_welfare_member, welfare_payment_mode, welfare_joined_date
+      FROM members
+      WHERE id = ${memberId}
+    `,
+    getMemberWelfareFees(memberId),
+  ]);
   if (members.length === 0) {
     throw new Error('Member not found.');
   }
 
-  const welfareFees = await getMemberWelfareFees(memberId);
   return buildWelfareSummary({
     joinedDate: members[0].joined_date,
     welfareFees,

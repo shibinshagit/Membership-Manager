@@ -96,7 +96,7 @@ export async function GET(request: Request) {
                 COUNT(m.id)::int as member_count
               FROM members e
               LEFT JOIN members m ON m.assigned_executive_member_id = e.id
-              WHERE e.membership_type NOT IN ('executive', 'central_committee', 'member')
+              WHERE e.membership_type = 'patrions'
               GROUP BY e.id
               ORDER BY e.full_name
             `
@@ -109,7 +109,7 @@ export async function GET(request: Request) {
                 e.status,
                 0::int as member_count
               FROM members e
-              WHERE e.membership_type NOT IN ('executive', 'central_committee', 'member')
+              WHERE e.membership_type = 'patrions'
               ORDER BY e.full_name
             `
         : hasExecutiveMemberColumn

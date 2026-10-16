@@ -26,6 +26,7 @@ import {
 } from '@/lib/db/compat';
 import { getWelfareSummaryForMember } from '@/lib/welfare-service';
 import { canonicalizeMemberPhones } from '@/lib/members/phone-canonical';
+import { cleanDisplayName } from '@/lib/members/display-name';
 
 function currentFeeYear(): string {
   return String(currentCalendarYear());
@@ -102,6 +103,7 @@ export async function GET(
   const { id } = await params;
 
   try {
+    await ensureExtendedMemberProfileColumns();
     await ensureMemberMembershipsTable();
     await ensureWelfareColumns();
     await ensureWhatsAppGroupColumn();
@@ -196,18 +198,17 @@ export async function GET(
       return NextResponse.json({ error: 'Member not found' }, { status: 404 });
     }
 
-    // Get documents
-    const documents = await sql`
-      SELECT * FROM documents WHERE member_id = ${id} ORDER BY created_at DESC
-    `;
-
-    // Get fees
-    const fees = await sql`
-      SELECT * FROM member_memberships WHERE member_id = ${id} ORDER BY due_date DESC NULLS LAST, updated_at DESC
-    `;
+    const [documents, fees, welfare] = await Promise.all([
+      sql`SELECT * FROM documents WHERE member_id = ${id} ORDER BY created_at DESC`,
+      sql`
+        SELECT * FROM member_memberships
+        WHERE member_id = ${id}
+        ORDER BY due_date DESC NULLS LAST, updated_at DESC
+      `,
+      getWelfareSummaryForMember(Number(id)),
+    ]);
 
     const yearsMeta = deriveJoinAndPaidYears(members[0] as Record<string, unknown>, fees);
-    const welfare = await getWelfareSummaryForMember(Number(id));
 
     return NextResponse.json({
       member: { ...members[0], ...yearsMeta },
@@ -243,6 +244,7 @@ export async function PUT(
     const body = await request.json();
     const {
       full_name,
+      display_name,
       gender,
       blood_group,
       marital_status,
@@ -429,11 +431,16 @@ export async function PUT(
         ? currentMember[0].whatsapp_group_added_at || new Date().toISOString()
         : currentMember[0].whatsapp_group_added_at;
 
+    const resolvedDisplayName = cleanDisplayName(
+      display_name === undefined ? currentMember[0].display_name : display_name
+    );
+
     const result = hasExecutiveMemberColumn
       ? await sql`
           UPDATE members SET
             member_id = ${resolvedMemberCode},
             full_name = ${full_name || currentMember[0].full_name},
+            display_name = ${resolvedDisplayName},
             email = ${email ?? currentMember[0].email},
             phone = ${resolvedPhone},
             whatsapp_number = ${resolvedWhatsapp},
@@ -481,6 +488,7 @@ export async function PUT(
           UPDATE members SET
             member_id = ${resolvedMemberCode},
             full_name = ${full_name || currentMember[0].full_name},
+            display_name = ${resolvedDisplayName},
             email = ${email ?? currentMember[0].email},
             phone = ${resolvedPhone},
             whatsapp_number = ${resolvedWhatsapp},

@@ -24,6 +24,7 @@ import {
   canonicalizeMemberPhones,
   displayMemberPhone,
 } from '@/lib/members/phone-canonical';
+import { cleanDisplayName } from '@/lib/members/display-name';
 
 export async function GET(request: Request) {
   const user = await getCurrentUser();
@@ -183,6 +184,7 @@ export async function GET(request: Request) {
             AND (
               ${searchPattern}::text IS NULL OR
               m.full_name ILIKE ${searchPattern} OR
+              m.display_name ILIKE ${searchPattern} OR
               m.member_id ILIKE ${searchPattern} OR
               m.email ILIKE ${searchPattern} OR
               m.phone ILIKE ${searchPattern} OR
@@ -292,6 +294,7 @@ export async function GET(request: Request) {
             AND (
               ${searchPattern}::text IS NULL OR
               m.full_name ILIKE ${searchPattern} OR
+              m.display_name ILIKE ${searchPattern} OR
               m.member_id ILIKE ${searchPattern} OR
               m.email ILIKE ${searchPattern} OR
               m.phone ILIKE ${searchPattern} OR
@@ -429,6 +432,7 @@ export async function GET(request: Request) {
                 AND (
                   ${searchPattern}::text IS NULL OR
                   m.full_name ILIKE ${searchPattern} OR
+              m.display_name ILIKE ${searchPattern} OR
                   m.member_id ILIKE ${searchPattern} OR
                   m.email ILIKE ${searchPattern} OR
                   m.phone ILIKE ${searchPattern} OR
@@ -562,6 +566,7 @@ export async function GET(request: Request) {
                 AND (
                   ${searchPattern}::text IS NULL OR
                   m.full_name ILIKE ${searchPattern} OR
+              m.display_name ILIKE ${searchPattern} OR
                   m.member_id ILIKE ${searchPattern} OR
                   m.email ILIKE ${searchPattern} OR
                   m.phone ILIKE ${searchPattern} OR
@@ -696,6 +701,7 @@ export async function GET(request: Request) {
               AND (
                 ${searchPattern}::text IS NULL OR
                 m.full_name ILIKE ${searchPattern} OR
+              m.display_name ILIKE ${searchPattern} OR
                 m.member_id ILIKE ${searchPattern} OR
                 m.email ILIKE ${searchPattern} OR
                 m.phone ILIKE ${searchPattern} OR
@@ -830,6 +836,7 @@ export async function GET(request: Request) {
               AND (
                 ${searchPattern}::text IS NULL OR
                 m.full_name ILIKE ${searchPattern} OR
+              m.display_name ILIKE ${searchPattern} OR
                 m.member_id ILIKE ${searchPattern} OR
                 m.email ILIKE ${searchPattern} OR
                 m.phone ILIKE ${searchPattern} OR
@@ -931,6 +938,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const {
       full_name,
+      display_name,
       gender,
       blood_group,
       marital_status,
@@ -1084,7 +1092,7 @@ export async function POST(request: Request) {
     const result = hasExecutiveMemberColumn
       ? await sql`
           INSERT INTO members (
-            member_id, full_name, email, phone, whatsapp_number, date_of_birth,
+            member_id, full_name, display_name, email, phone, whatsapp_number, date_of_birth,
             nominee, ward_no, emirates_id, passport_number, visa_status, profession, company_name, work_location,
             address, uae_building, uae_area, uae_city, full_name_arabic,
             gender, blood_group, marital_status, emergency_contact,
@@ -1093,7 +1101,7 @@ export async function POST(request: Request) {
             joined_date, membership_type, membership_plan, membership_payment_status,
             membership_start_date, membership_end_date, status, assigned_executive_member_id, notes
           ) VALUES (
-            ${memberId}, ${full_name}, ${email || null}, ${canonicalPhone}, 
+            ${memberId}, ${full_name}, ${cleanDisplayName(display_name)}, ${email || null}, ${canonicalPhone}, 
             ${canonicalWhatsapp || null}, ${date_of_birth || null},
             ${nominee || null}, ${ward_no}, ${emirates_id || null}, ${passport_number || null}, ${visa_status || null},
             ${profession || null}, ${company_name || null}, ${work_location || null},
@@ -1109,7 +1117,7 @@ export async function POST(request: Request) {
         `
       : await sql`
           INSERT INTO members (
-            member_id, full_name, email, phone, whatsapp_number, date_of_birth,
+            member_id, full_name, display_name, email, phone, whatsapp_number, date_of_birth,
             nominee, ward_no, emirates_id, passport_number, visa_status, profession, company_name, work_location,
             address, uae_building, uae_area, uae_city, full_name_arabic,
             gender, blood_group, marital_status, emergency_contact,
@@ -1118,7 +1126,7 @@ export async function POST(request: Request) {
             joined_date, membership_type, membership_plan, membership_payment_status,
             membership_start_date, membership_end_date, status, assigned_executive_id, notes
           ) VALUES (
-            ${memberId}, ${full_name}, ${email || null}, ${canonicalPhone}, 
+            ${memberId}, ${full_name}, ${cleanDisplayName(display_name)}, ${email || null}, ${canonicalPhone}, 
             ${canonicalWhatsapp || null}, ${date_of_birth || null},
             ${nominee || null}, ${ward_no}, ${emirates_id || null}, ${passport_number || null}, ${visa_status || null},
             ${profession || null}, ${company_name || null}, ${work_location || null},

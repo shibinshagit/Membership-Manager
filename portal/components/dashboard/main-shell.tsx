@@ -11,7 +11,7 @@ export function MainShell({ children }: { children: React.ReactNode }) {
     <main
       className={cn(
         'min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain pt-14 lg:pt-0',
-        isLanding ? 'bg-[#0f2f2c]' : 'bg-muted/30'
+        isLanding ? 'bg-[#071614]' : 'bg-muted/30'
       )}
     >
       <div

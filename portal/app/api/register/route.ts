@@ -37,6 +37,7 @@ export async function POST(request: Request) {
     const formData = await request.formData();
 
     const full_name = getString(formData.get('full_name'));
+    const display_name = getString(formData.get('display_name')) || null;
     const phone = getString(formData.get('phone'));
     const whatsapp_number = getString(formData.get('whatsapp_number'));
     const email = getString(formData.get('email'));
@@ -168,7 +169,7 @@ export async function POST(request: Request) {
     const result = hasExecutiveMemberColumn
       ? await sql`
           INSERT INTO members (
-            member_id, full_name, email, phone, whatsapp_number, date_of_birth,
+            member_id, full_name, display_name, email, phone, whatsapp_number, date_of_birth,
             nominee, ward_no, emirates_id, passport_number, visa_status, profession, company_name, work_location,
             address, uae_building, uae_area, uae_city,
             gender, blood_group, marital_status,
@@ -177,7 +178,7 @@ export async function POST(request: Request) {
             joined_date, membership_type, membership_plan, membership_payment_status,
             membership_start_date, membership_end_date, status, assigned_executive_member_id, notes
           ) VALUES (
-            ${memberId}, ${full_name}, ${trimmedEmail}, ${canonicalPhone},
+            ${memberId}, ${full_name}, ${display_name}, ${trimmedEmail}, ${canonicalPhone},
             ${canonicalWhatsapp}, ${date_of_birth || null},
             ${nominee}, ${ward_no}, ${emirates_id}, ${passport_number}, ${visa_status},
             ${profession || null}, ${company_name || null}, ${work_location || null},
@@ -193,7 +194,7 @@ export async function POST(request: Request) {
         `
       : await sql`
           INSERT INTO members (
-            member_id, full_name, email, phone, whatsapp_number, date_of_birth,
+            member_id, full_name, display_name, email, phone, whatsapp_number, date_of_birth,
             nominee, ward_no, emirates_id, passport_number, visa_status, profession, company_name, work_location,
             address, uae_building, uae_area, uae_city,
             gender, blood_group, marital_status,
@@ -202,7 +203,7 @@ export async function POST(request: Request) {
             joined_date, membership_type, membership_plan, membership_payment_status,
             membership_start_date, membership_end_date, status, assigned_executive_id, notes
           ) VALUES (
-            ${memberId}, ${full_name}, ${trimmedEmail}, ${canonicalPhone},
+            ${memberId}, ${full_name}, ${display_name}, ${trimmedEmail}, ${canonicalPhone},
             ${canonicalWhatsapp}, ${date_of_birth || null},
             ${nominee}, ${ward_no}, ${emirates_id}, ${passport_number}, ${visa_status},
             ${profession || null}, ${company_name || null}, ${work_location || null},

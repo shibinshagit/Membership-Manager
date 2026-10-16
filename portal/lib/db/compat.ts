@@ -1,7 +1,7 @@
 import { sql } from '@/lib/db';
 
 let hasAssignedExecutiveMemberColumnCache: boolean | null = null;
-let extendedMemberProfileColumnsEnsured = false;
+let extendedMemberProfileColumnsTask: Promise<void> | null = null;
 let memberMembershipsTableEnsured = false;
 let committeeTablesEnsured = false;
 let visaDocumentTypeEnsured = false;
@@ -70,9 +70,18 @@ export async function ensureAssignedExecutiveMemberColumn(): Promise<boolean> {
   return true;
 }
 
-export async function ensureExtendedMemberProfileColumns(): Promise<void> {
-  if (extendedMemberProfileColumnsEnsured) return;
+export function ensureExtendedMemberProfileColumns(): Promise<void> {
+  if (!extendedMemberProfileColumnsTask) {
+    extendedMemberProfileColumnsTask = runEnsureExtendedMemberProfileColumns().catch((error) => {
+      extendedMemberProfileColumnsTask = null;
+      throw error;
+    });
+  }
+  return extendedMemberProfileColumnsTask;
+}
 
+async function runEnsureExtendedMemberProfileColumns(): Promise<void> {
+  await sql`ALTER TABLE members ADD COLUMN IF NOT EXISTS display_name VARCHAR(255)`;
   await sql`ALTER TABLE members ADD COLUMN IF NOT EXISTS gender VARCHAR(20)`;
   await sql`ALTER TABLE members ADD COLUMN IF NOT EXISTS blood_group VARCHAR(10)`;
   await sql`ALTER TABLE members ADD COLUMN IF NOT EXISTS marital_status VARCHAR(20)`;
@@ -96,13 +105,22 @@ export async function ensureExtendedMemberProfileColumns(): Promise<void> {
   await sql`ALTER TABLE members ADD COLUMN IF NOT EXISTS nominee VARCHAR(255)`;
   await sql`ALTER TABLE members ADD COLUMN IF NOT EXISTS ward_no INTEGER`;
   await sql`ALTER TABLE members DROP CONSTRAINT IF EXISTS members_ward_no_check`;
-  await sql`
-    ALTER TABLE members ADD CONSTRAINT members_ward_no_check
-    CHECK (ward_no IS NULL OR ward_no = 0 OR (ward_no >= 1 AND ward_no <= 16))
-  `;
+  try {
+    await sql`
+      ALTER TABLE members ADD CONSTRAINT members_ward_no_check
+      CHECK (ward_no IS NULL OR ward_no = 0 OR (ward_no >= 1 AND ward_no <= 16))
+    `;
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    if (code !== '42710') throw error;
+  }
   await sql`ALTER TABLE members ADD COLUMN IF NOT EXISTS membership_plan VARCHAR(20) DEFAULT 'annual'`;
   await sql`ALTER TABLE members ADD COLUMN IF NOT EXISTS membership_payment_status VARCHAR(20) DEFAULT 'unpaid'`;
-  extendedMemberProfileColumnsEnsured = true;
+  await sql`CREATE INDEX IF NOT EXISTS idx_documents_file_path ON documents(file_path)`;
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_documents_member_photo
+    ON documents(member_id, document_type, created_at DESC)
+  `;
 }
 
 export async function ensureMemberMembershipsTable(): Promise<void> {
