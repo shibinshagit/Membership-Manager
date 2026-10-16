@@ -9,13 +9,13 @@ import { cn } from '@/lib/utils';
 
 const display = Fraunces({
   subsets: ['latin'],
-  weight: ['500', '600', '700'],
+  weight: '600',
   variable: '--font-mpa-display',
 });
 
 const body = Source_Sans_3({
   subsets: ['latin'],
-  weight: ['400', '500', '600'],
+  weight: '400',
   variable: '--font-mpa-body',
 });
 
