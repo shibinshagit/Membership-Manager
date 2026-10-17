@@ -134,8 +134,8 @@ function OfficerRow({
       <div
         className={
           large
-            ? 'mx-auto grid w-full max-w-4xl grid-cols-3 items-stretch gap-3 pt-16 sm:gap-6 sm:pt-20'
-            : 'mx-auto grid w-full max-w-4xl grid-cols-3 items-stretch gap-3 pt-12 sm:gap-6 sm:pt-14'
+            ? 'mx-auto grid w-full max-w-4xl grid-cols-3 items-stretch gap-x-3 gap-y-16 pt-16 sm:gap-x-6 sm:gap-y-24 sm:pt-20'
+            : 'mx-auto grid w-full max-w-4xl grid-cols-3 items-stretch gap-x-3 gap-y-14 pt-12 sm:gap-x-6 sm:gap-y-16 sm:pt-14'
         }
       >
         {roles.map((role) => (
@@ -213,7 +213,7 @@ export default async function DashboardPage() {
                 No patrons yet. Open a member, choose Edit, and set Member Role to Patron.
               </p>
             ) : (
-              <div className="mx-auto grid w-full max-w-4xl grid-cols-2 items-stretch gap-3 pt-12 sm:grid-cols-3 sm:gap-6 sm:pt-14">
+              <div className="mx-auto grid w-full max-w-4xl grid-cols-2 items-stretch gap-x-3 gap-y-14 pt-12 sm:grid-cols-3 sm:gap-x-6 sm:gap-y-16 sm:pt-14">
                 {patrons.map((person) => (
                   <OfficerCard key={person.id} label="Patron" person={person} />
                 ))}
@@ -233,7 +233,7 @@ export default async function DashboardPage() {
                 No central committee members yet. Open a member, choose Edit, and set Member Role to Central Committee.
               </p>
             ) : (
-              <div className="mx-auto grid w-full max-w-4xl grid-cols-2 items-stretch gap-3 pt-12 sm:grid-cols-3 sm:gap-6 sm:pt-14">
+              <div className="mx-auto grid w-full max-w-4xl grid-cols-2 items-stretch gap-x-3 gap-y-14 pt-12 sm:grid-cols-3 sm:gap-x-6 sm:gap-y-16 sm:pt-14">
                 {centralCommittee.map((person) => (
                   <OfficerCard key={person.id} label="Central Committee" person={person} />
                 ))}
