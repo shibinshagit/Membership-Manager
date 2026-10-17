@@ -387,7 +387,7 @@ export default function FeesPage() {
             </div>
 
             {/* Desktop / tablet table */}
-            <DataListScroll className="hidden md:block" minWidth="52rem">
+            <DataListScroll className="hidden md:block" minWidth="68rem">
               <DataListHead
                 className={FEE_LIST_COLS}
                 columns={[
@@ -433,7 +433,7 @@ export default function FeesPage() {
                       {fee.payment_status}
                     </StatusBadge>
                   </div>
-                  <div className="flex items-center justify-end gap-1 !overflow-visible">
+                  <div className="flex flex-nowrap items-center justify-end gap-1 !overflow-visible">
                     {fee.payment_status !== 'paid' ? (
                       <>
                         <Button

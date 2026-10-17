@@ -121,7 +121,8 @@ export async function getLeadershipRoster(): Promise<LeadershipPerson[]> {
       'vice_president',
       'joint_secretary',
       'joint_treasurer',
-      'patrions'
+      'patrions',
+      'central_committee'
     )
     ORDER BY m.full_name ASC
   `;

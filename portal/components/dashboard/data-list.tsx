@@ -301,7 +301,7 @@ export function memberStatusTone(status: string): StatusTone {
 }
 
 export const FEE_LIST_COLS =
-  'grid-cols-[minmax(12rem,1.4fr)_minmax(10rem,1.1fr)_6.5rem_7.5rem_7rem_9rem]';
+  'grid-cols-[minmax(11rem,1.3fr)_minmax(8rem,1fr)_6rem_7.5rem_6.5rem_minmax(16rem,auto)]';
 
 export const DOC_LIST_COLS =
   'grid-cols-[minmax(12rem,1.3fr)_minmax(10rem,1.2fr)_5rem_7.5rem_7rem]';

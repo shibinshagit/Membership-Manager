@@ -157,6 +157,7 @@ export default async function DashboardPage() {
 
   const roster = await getLeadershipRoster();
   const patrons = roster.filter((person) => person.membership_type === 'patrions');
+  const centralCommittee = roster.filter((person) => person.membership_type === 'central_committee');
 
   return (
     <div
@@ -215,6 +216,26 @@ export default async function DashboardPage() {
               <div className="mx-auto grid w-full max-w-4xl grid-cols-2 items-stretch gap-3 pt-12 sm:grid-cols-3 sm:gap-6 sm:pt-14">
                 {patrons.map((person) => (
                   <OfficerCard key={person.id} label="Patron" person={person} />
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section>
+            <h2
+              className="relative z-20 mx-auto w-fit bg-[#071614] px-5 py-2 text-center font-[family-name:var(--font-mpa-display)] text-sm font-semibold uppercase tracking-[0.28em] sm:text-base"
+              style={{ color: GOLD }}
+            >
+              Central committee
+            </h2>
+            {centralCommittee.length === 0 ? (
+              <p className="mx-auto mt-4 max-w-xl text-center text-sm text-white/70">
+                No central committee members yet. Open a member, choose Edit, and set Member Role to Central Committee.
+              </p>
+            ) : (
+              <div className="mx-auto grid w-full max-w-4xl grid-cols-2 items-stretch gap-3 pt-12 sm:grid-cols-3 sm:gap-6 sm:pt-14">
+                {centralCommittee.map((person) => (
+                  <OfficerCard key={person.id} label="Central Committee" person={person} />
                 ))}
               </div>
             )}
